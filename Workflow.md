@@ -1,4 +1,4 @@
-Workflow
+# Workflow
 对于两个人、时间紧迫的黑客松，你们不需要复杂的 GitFlow (如 `develop` 分支)。我推荐一个简化的 **"GitHub Flow"** 或称 **"功能分支工作流" (Feature Branch Workflow)**。
 
 **核心原则：**
