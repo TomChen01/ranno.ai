@@ -1,7 +1,7 @@
 // src/components/MapView.tsx
 
 import { Map, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import type { CrimePoint } from '../services/crimeService';
 import type { RouteLike } from '../services/riskService';
 
@@ -35,12 +35,12 @@ function MapLayers({ crimePoints, routeRequest, onRouteReady, onRouteError }: Ma
   const visualizationLibrary = useMapsLibrary('visualization');
   const routesLibrary = useMapsLibrary('routes');
 
-  const [heatmapLayer, setHeatmapLayer] = useState<google.maps.visualization.HeatmapLayer | null>(null);
-  const [directionsRenderer, setDirectionsRenderer] = useState<google.maps.DirectionsRenderer | null>(null);
-  const [directionsService, setDirectionsService] = useState<google.maps.DirectionsService | null>(null);
+  const heatmapLayerRef = useRef<google.maps.visualization.HeatmapLayer | null>(null);
+  const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
+  const directionsServiceRef = useRef<google.maps.DirectionsService | null>(null);
 
   useEffect(() => {
-    if (!map || !visualizationLibrary || heatmapLayer) {
+    if (!map || !visualizationLibrary || heatmapLayerRef.current) {
       return;
     }
 
@@ -50,36 +50,39 @@ function MapLayers({ crimePoints, routeRequest, onRouteReady, onRouteError }: Ma
       opacity: 0.7,
     });
 
-    setHeatmapLayer(layer);
+    heatmapLayerRef.current = layer;
 
     return () => {
       layer.setMap(null);
-      setHeatmapLayer(null);
+      heatmapLayerRef.current = null;
     };
-  }, [map, visualizationLibrary, heatmapLayer]);
+  }, [map, visualizationLibrary]);
 
   useEffect(() => {
-    if (!heatmapLayer) {
+    const layer = heatmapLayerRef.current;
+    if (!layer) {
       return;
     }
 
     const points = crimePoints.map((point) => new google.maps.LatLng(point.latitude, point.longitude));
-    heatmapLayer.setData(points);
-  }, [crimePoints, heatmapLayer]);
+    layer.setData(points);
+  }, [crimePoints]);
 
   useEffect(() => {
-    if (!routesLibrary || directionsService) {
+    if (!routesLibrary || directionsServiceRef.current) {
       return;
     }
 
     const service = new routesLibrary.DirectionsService();
-    setDirectionsService(service);
+    directionsServiceRef.current = service;
 
-    return () => setDirectionsService(null);
-  }, [routesLibrary, directionsService]);
+    return () => {
+      directionsServiceRef.current = null;
+    };
+  }, [routesLibrary]);
 
   useEffect(() => {
-    if (!map || !routesLibrary || directionsRenderer) {
+    if (!map || !routesLibrary || directionsRendererRef.current) {
       return;
     }
 
@@ -93,16 +96,18 @@ function MapLayers({ crimePoints, routeRequest, onRouteReady, onRouteError }: Ma
       },
     });
 
-    setDirectionsRenderer(renderer);
+    directionsRendererRef.current = renderer;
 
     return () => {
       renderer.setMap(null);
-      setDirectionsRenderer(null);
+      directionsRendererRef.current = null;
     };
-  }, [map, routesLibrary, directionsRenderer]);
+  }, [map, routesLibrary]);
 
   useEffect(() => {
-    if (!routeRequest || !directionsService || !directionsRenderer) {
+    const service = directionsServiceRef.current;
+    const renderer = directionsRendererRef.current;
+    if (!routeRequest || !service || !renderer) {
       return;
     }
 
@@ -110,7 +115,7 @@ function MapLayers({ crimePoints, routeRequest, onRouteReady, onRouteError }: Ma
       google.maps.TravelMode[routeRequest.travelMode as keyof typeof google.maps.TravelMode] ??
       google.maps.TravelMode.WALKING;
 
-    directionsService.route(
+    service.route(
       {
         origin: routeRequest.origin,
         destination: routeRequest.destination,
@@ -119,7 +124,7 @@ function MapLayers({ crimePoints, routeRequest, onRouteReady, onRouteError }: Ma
       },
       (result: google.maps.DirectionsResult | null, status: google.maps.DirectionsStatus) => {
         if (status === 'OK' && result) {
-          directionsRenderer.setDirections(result);
+          renderer.setDirections(result);
           const primaryRoute = result.routes[0];
           if (primaryRoute?.bounds && map) {
             map.fitBounds(primaryRoute.bounds);
@@ -130,7 +135,7 @@ function MapLayers({ crimePoints, routeRequest, onRouteReady, onRouteError }: Ma
         }
       },
     );
-  }, [routeRequest, directionsService, directionsRenderer, map, onRouteReady, onRouteError]);
+  }, [routeRequest, map, onRouteReady, onRouteError]);
 
   return null;
 }
