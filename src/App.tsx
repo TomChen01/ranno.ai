@@ -1,6 +1,6 @@
 // src/App.tsx [最终完整版 - 守卫 + 加载器]
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AIEngineTest } from './components/AIEngineTest'; // <-- 导入我们的测试台
 
 // 声明 Chrome 注入的全局 API

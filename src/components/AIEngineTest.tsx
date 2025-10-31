@@ -1,9 +1,9 @@
 // src/components/AIEngineTest.tsx [最终版]
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 // 导入我们的大脑
 // (路径../services/aiService 是正确的)
-import { parseUserIntent, type RunGeniusIntent } from '../services/aiService.ts';
+import { parseUserIntent, type RunGeniusIntent } from '../services/aiService';
 
 export function AIEngineTest() {
   const [input, setInput] = useState<string>("我想在旧金山跑个5公里，要安全且有路灯"); // 输入框内容
