@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { MapView, type RouteRequest, type TravelMode } from './MapView';
 import { RoutePlannerForm } from './RoutePlannerForm';
-import { fetchCrimePoints, type CrimePoint } from '../services/crimeService';
+import { fetchCrimePoints } from '../services/crimeService';
+import type { CrimePoint } from '../services/crimeService';
 import { parseUserIntent, type RunGeniusIntent } from '../services/aiService';
 import { type RouteLike } from '../services/riskService';
 
@@ -22,10 +23,14 @@ type DirectionsResultLike = {
   routes: RouteLike[];
 };
 
-export function MainApp() {
+interface MainAppProps {
+  crimePoints?: CrimePoint[];
+}
+
+export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
-  const [crimePoints, setCrimePoints] = useState<CrimePoint[]>([]);
+  const [crimePoints, setCrimePoints] = useState<CrimePoint[]>(crimePointsProp ?? []);
   const [crimeError, setCrimeError] = useState<string | null>(null);
   const [isLoadingCrime, setIsLoadingCrime] = useState<boolean>(false);
 
@@ -40,6 +45,12 @@ export function MainApp() {
   const [routeError, setRouteError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (crimePointsProp && crimePointsProp.length > 0) {
+      setCrimePoints(crimePointsProp);
+      setIsLoadingCrime(false);
+      setCrimeError(null);
+      return;
+    }
     let cancelled = false;
     setIsLoadingCrime(true);
     fetchCrimePoints({ limit: 1000 })
@@ -63,7 +74,7 @@ export function MainApp() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [crimePointsProp]);
 
   const handleParsePrompt = useCallback(async () => {
     setIsParsing(true);

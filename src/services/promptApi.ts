@@ -18,9 +18,19 @@ export type PromptSession = {
   prompt: (input: string | PromptMessage[]) => Promise<string>;
 };
 
+export type ExpectedIO = {
+  type: 'text' | 'image' | 'audio';
+  // supported language codes for the Prompt API
+  languages: ('en' | 'ja' | 'es')[];
+};
+
 export type LanguageModelApi = {
   availability?: () => Promise<ModelStatus>;
-  create?: (options?: { initialPrompts?: PromptMessage[] }) => Promise<PromptSession>;
+  create?: (options?: {
+    initialPrompts?: PromptMessage[];
+    expectedInputs?: ExpectedIO[];
+    expectedOutputs?: ExpectedIO[];
+  }) => Promise<PromptSession>;
 };
 
 export type SummarizerApi = {

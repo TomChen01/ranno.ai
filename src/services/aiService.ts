@@ -100,6 +100,12 @@ export async function parseUserIntent(userInput: string): Promise<RunGeniusInten
     const session = await languageModel.create({
       initialPrompts: [
         { role: 'system', content: systemPrompt }
+      ],
+      expectedInputs: [
+        { type: "text", languages: ["en" /* system prompt */, "en" /* user prompt */] }
+      ],
+      expectedOutputs: [
+        { type: "text", languages: ["en"] }  // 输出JSON格式的英文结果
       ]
     });
     

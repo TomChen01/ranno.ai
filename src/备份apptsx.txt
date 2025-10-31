@@ -1,33 +1,17 @@
-// src/App.tsx [最终完整版 - 守卫 + 加载器 + 数据预加载]
+// src/App.tsx [最终完整版 - 守卫 + 加载器]
 
 import { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import { MainApp } from './components/MainApp';
 import { getLanguageModel, getSummarizer, type ModelStatus } from './services/promptApi';
-import { fetchCrimePoints } from './services/crimeService';
-import type { CrimePoint } from './services/crimeService';
 
 function App() {
   const [status, setStatus] = useState<ModelStatus>('LOADING...');
-  const [crimeData, setCrimeData] = useState<CrimePoint[]>([]);
-  const [crimeError, setCrimeError] = useState<string | null>(null);
 
-  // 加载犯罪数据
-  const preloadCrimeData = useCallback(async () => {
-    setCrimeError(null);
-    try {
-      const points = await fetchCrimePoints();
-      setCrimeData(points);
-      console.log(`✅ Successfully preloaded ${points.length} crime points.`);
-    } catch (error) {
-      setCrimeError(error instanceof Error ? error.message : String(error));
-      console.error("❌ Failed to preload crime data:", error);
-    }
-  }, []);
-
-  // 检查模型状态的函数 (无需修改)
+  // 检查模型状态的函数
   const checkModelStatus = useCallback(async () => {
     const languageModel = getLanguageModel();
+
     if (!languageModel || typeof languageModel.availability !== 'function') {
       setStatus('ERROR: LanguageModel API not found');
       return;
@@ -41,25 +25,27 @@ function App() {
     }
   }, []);
 
-  // 在组件挂载时，自动检查状态并预加载数据
+  // 在组件挂载时，自动检查一次状态
   useEffect(() => {
     checkModelStatus();
-    preloadCrimeData(); // --- [新增] --- 同时触发犯罪数据的预加载
-  }, [checkModelStatus, preloadCrimeData]); // --- [修改] --- 添加 preloadCrimeData 到依赖数组
+  }, [checkModelStatus]);
 
-  // 处理用户激活和下载的函数 (无需修改)
+  // 处理用户激活和下载的函数
   const handleActivateAndDownload = async () => {
     const summarizer = getSummarizer();
+
     if (!summarizer || typeof summarizer.create !== 'function') {
       setStatus('ERROR: Summarizer API not found. Cannot trigger download.');
       return;
     }
+
     console.log('User activated. Attempting to create session to trigger download...');
     setStatus('downloading');
+
     try {
       const session = await summarizer.create();
       console.log('Session created or download triggered.', session);
-      await checkModelStatus();
+      await checkModelStatus(); // 触发后，再次检查状态
     } catch (error) {
       setStatus('ERROR: Failed to create session / trigger download');
       console.error(error);
@@ -69,13 +55,8 @@ function App() {
   // 渲染 UI
   return (
     <div className="app-guard">
-      {crimeError && (
-        <div className="crime-error" style={{color: 'red', marginBottom: '1em'}}>
-          犯罪数据加载失败: {crimeError}
-        </div>
-      )}
       {status === 'available' ? (
-        <MainApp crimePoints={crimeData} />
+        <MainApp />
       ) : (
         <div className="loader-panel">
           <h1>AI Model Loader</h1>
@@ -84,7 +65,7 @@ function App() {
           </p>
           <hr />
 
-          {status === 'LOADING...' && <p>Checking model availability & preloading data...</p>}
+          {status === 'LOADING...' && <p>Checking model availability...</p>}
 
           {status === 'unavailable' && (
             <p className="loader-warning">AI model is unavailable on this device.</p>
