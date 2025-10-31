@@ -1,8 +1,6 @@
 // src/services/aiService.ts
 
-// 声明 Chrome 注入的全局 API
-// @ts-ignore
-declare var LanguageModel: any;
+import { getLanguageModel } from './promptApi';
 
 /**
  * RunGenius V2 意图接口 (我们的“订单”)
@@ -43,11 +41,12 @@ export interface RunGeniusIntent {
  * @returns 一个 Promise，解析成功时返回 RunGeniusIntent 对象，否则返回 null
  */
 export async function parseUserIntent(userInput: string): Promise<RunGeniusIntent | null> {
-  // 检查 Chrome Built-in AI API 是否可用
-  if (typeof LanguageModel === 'undefined' || typeof LanguageModel.create !== 'function') {
-     console.error("Global 'LanguageModel.create' function not found.");
-     alert("AI feature is not available. Please check your Chrome version and flags.");
-     return null;
+  // 检查 create 函数是否存在
+  const languageModel = getLanguageModel();
+  if (!languageModel || typeof languageModel.create !== 'function') {
+    console.error("Global 'LanguageModel.create' function not found.");
+    alert('AI create function (LanguageModel.create) not found.');
+    return null;
   }
 
   // --- [核心升级] 这是我们强化后的最终版 Prompt (提示词) ---
@@ -97,16 +96,15 @@ export async function parseUserIntent(userInput: string): Promise<RunGeniusInten
   // --- Prompt 结束 ---
 
   try {
-    // 1. 创建一个 Prompt API 会话
-    const session = await LanguageModel.create({
+    // 1. 创建一个 Prompt API 会话 (基于文档)
+    const session = await languageModel.create({
       initialPrompts: [
         { role: 'system', content: systemPrompt }
       ]
     });
     
-    // 2. 发送用户输入并获取结果
-    // @ts-ignore
-    const result: string = await session.prompt(userInput);
+    // 2. 发送用户输入
+    const result = await session.prompt(userInput);
 
     // 3. 清理并解析 AI 返回的字符串为 JSON 对象
     const jsonResult = result.replace(/```json|```/g, "").trim();
