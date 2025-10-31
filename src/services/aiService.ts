@@ -1,26 +1,25 @@
-// src/services/aiService.ts
+// src/services/aiService.ts [V4 - 最终版]
 
-/*
- * =================================================================
- * 1. 定义我们的 V2 JSON 结构 (TypeScript Interface)
- * 这是我们项目的“数据蓝图”。
- * =================================================================
- */
+// 声明 Chrome 注入的全局 API
+// @ts-ignore
+declare var LanguageModel: any;
+
+// V2 JSON 接口 (我们的“订单”)
 export interface RunGeniusIntent {
   constraints: {
     distance_km?: number;
     duration_min?: number;
     route_type?: 'loop' | 'out_and_back';
-    time_of_day?: string; // e.g., "21:00" for "9pm"
+    time_of_day?: string;
   };
   location: {
-    context: string; // e.g., "San Francisco, Mission District"
+    context: string;
   };
   preferences: {
     incline?: 'low' | 'medium' | 'high';
-    surface?: string[]; // 'paved', 'trail'
-    safety?: string[]; // 'well_lit', 'avoid_high_crime_areas'
-    environment?: string[]; // 'scenery_park', 'shade'
+    surface?: string[];
+    safety?: string[];
+    environment?: string[];
   };
   poi: {
     include?: { type: string, value: string }[];
@@ -28,31 +27,18 @@ export interface RunGeniusIntent {
   };
 }
 
-/*
- * =================================================================
- * 2. 检查 AI API 是否可用的辅助函数
- * (window.model 是 Chrome 浏览器注入的，所以我们要用 @ts-ignore)
- * =================================================================
- */
-export function canUseAI(): boolean {
-  // @ts-ignore
-  return (typeof window.model !== 'undefined' && typeof window.model.createSession === 'function');
-}
-
-/*
- * =================================================================
- * 3. 你的核心函数：解析用户意图 (挑战 A)
- * =================================================================
+/**
+ * [你的核心任务] 核心函数：解析用户意图
  */
 export async function parseUserIntent(userInput: string): Promise<RunGeniusIntent | null> {
-  if (!canUseAI()) {
-    console.error("Built-in AI API (window.model.createSession) is not available.");
-    alert("AI 功能不可用。请确保您使用的是最新版 Chrome (Canary/Dev) 并已启用相关实验性标志。");
-    return null;
+  // 检查 create 函数是否存在
+  if (typeof LanguageModel === 'undefined' || typeof LanguageModel.create !== 'function') {
+     console.error("Global 'LanguageModel.create' function not found.");
+     alert("AI create function (LanguageModel.create) not found.");
+     return null;
   }
 
   // --- 这是我们的核心 Prompt (提示词) ---
-  // 你未来的主要工作就是不断打磨这个 Prompt，让它更智能
   const systemPrompt = `
     You are an expert running route assistant.
     Your task is to parse the user's natural language request into a structured JSON object.
@@ -74,17 +60,18 @@ export async function parseUserIntent(userInput: string): Promise<RunGeniusInten
   // --- Prompt 结束 ---
 
   try {
-    // 1. 创建 AI 会话
-    // @ts-ignore
-    const session = await window.model.createSession({
-      systemInstruction: systemPrompt
+    // 1. 创建一个 Prompt API 会话 (基于文档)
+    const session = await LanguageModel.create({
+      initialPrompts: [
+        { role: 'system', content: systemPrompt }
+      ]
     });
     
     // 2. 发送用户输入
+    // @ts-ignore
     const result = await session.prompt(userInput);
 
-    // 3. 清理并解析 AI 的返回结果
-    // (Nano 有时还是会返回 ```json ... ```, 我们要清理掉)
+    // 3. 清理并解析
     const jsonResult = result.replace(/```json|```/g, "").trim();
     const parsedResult: RunGeniusIntent = JSON.parse(jsonResult);
     
