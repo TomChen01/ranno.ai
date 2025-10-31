@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { MapView, type RouteRequest, type TravelMode } from './MapView';
 import { RoutePlannerForm } from './RoutePlannerForm';
-import { SafetyInsights } from './SafetyInsights';
 import { fetchCrimePoints } from '../services/crimeService';
 import type { CrimePoint } from '../services/crimeService';
 import { parseUserIntent, type RunGeniusIntent } from '../services/aiService';

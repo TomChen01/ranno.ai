@@ -5,7 +5,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { RunGeniusIntent } from './aiService';
 import type { CrimePoint } from './crimeService'; // 导入犯罪数据点类型
-import { summarizeRouteRisk, type RouteRiskSummary } from './riskService'; // 导入风险分析函数
+import { summarizeRouteRisk } from './riskService'; // 导入风险分析函数
+import type { RouteRiskSummary } from './riskService';
 
 export interface LatLng {
   lat: number;
