@@ -1,5 +1,6 @@
 // src/services/routeService.ts
 // 生成用于在 Google Maps 上绘制的路线，并集成风险评估
+// 生成用于在 Google Maps 上绘制的路线，并集成风险评估
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { RunGeniusIntent } from './aiService';
