@@ -2,13 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { APIProvider } from '@vis.gl/react-google-maps';
-import { AIEngineTest } from './AIEngineTest';
 import { MapView, type RouteRequest, type TravelMode } from './MapView';
 import { RoutePlannerForm } from './RoutePlannerForm';
-import { SafetyInsights } from './SafetyInsights';
 import { fetchCrimePoints, type CrimePoint } from '../services/crimeService';
 import { parseUserIntent, type RunGeniusIntent } from '../services/aiService';
-import { summarizeRouteRisk, type RouteRiskSummary, type RouteLike } from '../services/riskService';
+import { type RouteLike } from '../services/riskService';
 
 const DEFAULT_PROMPT = '我想在旧金山晚上跑一条安全的 5 公里路线，沿途需要光线好。';
 const DEFAULT_ORIGIN = 'Ferry Building, San Francisco, CA';
@@ -36,18 +34,10 @@ export function MainApp() {
   const [isParsing, setIsParsing] = useState<boolean>(false);
   const [parseError, setParseError] = useState<string | null>(null);
 
-  const [origin, setOrigin] = useState<string>(DEFAULT_ORIGIN);
-  const [destination, setDestination] = useState<string>(DEFAULT_DESTINATION);
-  const [travelMode, setTravelMode] = useState<TravelMode>('WALKING');
-  const [provideAlternatives, setProvideAlternatives] = useState<boolean>(true);
-
   const [routeRequest, setRouteRequest] = useState<RouteRequest | null>(null);
   const [routeDetails, setRouteDetails] = useState<RouteDetails | null>(null);
-  const [riskSummary, setRiskSummary] = useState<RouteRiskSummary | null>(null);
   const [isPlanning, setIsPlanning] = useState<boolean>(false);
   const [routeError, setRouteError] = useState<string | null>(null);
-
-  const [showDebug, setShowDebug] = useState<boolean>(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,30 +72,40 @@ export function MainApp() {
     try {
       const result = await parseUserIntent(userPrompt);
       setIntent(result);
+      return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'AI 解析失败';
       setParseError(message);
+      return null;
     } finally {
       setIsParsing(false);
     }
   }, [userPrompt]);
 
   const requestRoute = useCallback(
-    (options?: { forceAlternatives?: boolean }) => {
-      if (!origin || !destination) {
-        return;
-      }
+    (parsedIntent?: RunGeniusIntent | null) => {
+      const activeIntent = parsedIntent ?? intent;
+      const originText =
+        activeIntent?.location?.origin?.text ?? activeIntent?.location?.context ?? DEFAULT_ORIGIN;
+      const destinationText =
+        activeIntent?.location?.destination?.text ?? DEFAULT_DESTINATION;
+      const travelMode = activeIntent?.preferences?.route_type === 'point_to_point' ? 'DRIVING' : 'WALKING';
 
-      const nextProvideAlternatives = options?.forceAlternatives ?? provideAlternatives;
-      if (nextProvideAlternatives !== provideAlternatives) {
-        setProvideAlternatives(nextProvideAlternatives);
+      if (!originText || !destinationText) {
+        setRouteError('未识别到起点或终点，请在提示中明确说明。');
+        return;
       }
 
       setIsPlanning(true);
       setRouteError(null);
-      setRouteRequest({ origin, destination, travelMode, provideAlternatives: nextProvideAlternatives });
+      setRouteRequest({
+        origin: originText,
+        destination: destinationText,
+        travelMode: travelMode as TravelMode,
+        provideAlternatives: true,
+      });
     },
-    [destination, origin, travelMode, provideAlternatives],
+    [intent],
   );
 
   const handleRouteReady = useCallback(
@@ -116,7 +116,7 @@ export function MainApp() {
       const primary = result.routes[0];
       if (!primary) {
         setRouteDetails(null);
-        setRiskSummary(null);
+        // 安全摘要当前不显示，只保留路线信息
         return;
       }
 
@@ -127,25 +127,15 @@ export function MainApp() {
         durationText: leg?.duration?.text,
       });
 
-      try {
-        const summary = summarizeRouteRisk(primary, crimePoints);
-        setRiskSummary(summary);
-      } catch (error) {
-        console.error('Failed to compute risk summary', error);
-        setRiskSummary(null);
-      }
+      // 安全摘要当前不显示，只保留路线信息
     },
-    [crimePoints],
+    [],
   );
 
   const handleRouteError = useCallback((status: string) => {
     setIsPlanning(false);
     setRouteError(`路线规划失败：${status}`);
   }, []);
-
-  const handleRequestReplan = useCallback(() => {
-    requestRoute({ forceAlternatives: true });
-  }, [requestRoute]);
 
   const libraries = useMemo<string[]>(() => ['routes', 'visualization', 'geometry'], []);
 
@@ -161,46 +151,7 @@ export function MainApp() {
   return (
     <APIProvider apiKey={apiKey} libraries={libraries}>
       <div className="app-shell">
-        <aside className="sidebar">
-          <RoutePlannerForm
-            origin={origin}
-            destination={destination}
-            userPrompt={userPrompt}
-            travelMode={travelMode}
-            provideAlternatives={provideAlternatives}
-            isParsing={isParsing}
-            isPlanning={isPlanning}
-            parseError={parseError}
-            intent={intent}
-            onOriginChange={setOrigin}
-            onDestinationChange={setDestination}
-            onPromptChange={setUserPrompt}
-            onTravelModeChange={setTravelMode}
-            onProvideAlternativesChange={setProvideAlternatives}
-            onParsePrompt={handleParsePrompt}
-            onPlanRoute={requestRoute}
-          />
-
-          <SafetyInsights
-            risk={riskSummary}
-            route={routeDetails}
-            intent={intent}
-            onRequestReplan={riskSummary && riskSummary.level !== 'low' ? handleRequestReplan : undefined}
-            isPlanning={isPlanning}
-          />
-
-          <div className="panel-section">
-            <label className="checkbox-field">
-              <input type="checkbox" checked={showDebug} onChange={(event) => setShowDebug(event.target.checked)} />
-              <span>显示 AI 调试面板</span>
-            </label>
-            {showDebug && <AIEngineTest />}
-          </div>
-
-          {crimeError && <p className="feedback feedback-error">{crimeError}</p>}
-        </aside>
-
-        <main className="map-container">
+        <div className="map-container">
           <MapView
             crimePoints={crimePoints}
             routeRequest={routeRequest}
@@ -208,14 +159,34 @@ export function MainApp() {
             onRouteError={handleRouteError}
           />
 
+          <div className="prompt-overlay">
+            <RoutePlannerForm
+              userPrompt={userPrompt}
+              isParsing={isParsing}
+              isPlanning={isPlanning}
+              parseError={parseError}
+              onPromptChange={setUserPrompt}
+              onParsePrompt={handleParsePrompt}
+              onPlanRoute={requestRoute}
+            />
+
+            {routeDetails && (
+              <p className="route-summary">
+                {routeDetails.summary && `${routeDetails.summary} · `}
+                {routeDetails.distanceText} · {routeDetails.durationText}
+              </p>
+            )}
+
+            {crimeError && <p className="feedback feedback-error">{crimeError}</p>}
+            {routeError && <p className="feedback feedback-error">{routeError}</p>}
+          </div>
+
           {(isLoadingCrime || isPlanning) && (
             <div className="overlay">
               <span>{isPlanning ? '正在计算路线…' : '正在加载犯罪数据…'}</span>
             </div>
           )}
-
-          {routeError && <div className="toast toast-error">{routeError}</div>}
-        </main>
+        </div>
       </div>
     </APIProvider>
   );
