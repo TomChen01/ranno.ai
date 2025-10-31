@@ -9,13 +9,21 @@ type BoundsJson = {
   east: number;
 };
 
+type LatLngLike = {
+  lat: () => number;
+  lng: () => number;
+};
+
 export type RouteLike = {
   bounds?: { toJSON: () => BoundsJson } | null;
   summary?: string;
   legs?: Array<{
-    distance?: { text?: string };
-    duration?: { text?: string };
+    distance?: { text?: string; value?: number };
+    duration?: { text?: string; value?: number };
+    start_address?: string;
+    end_address?: string;
   }>;
+  overview_path?: LatLngLike[];
 };
 
 export type RiskLevel = 'low' | 'medium' | 'high';
