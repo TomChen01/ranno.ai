@@ -45,7 +45,7 @@ export function RoutePlannerForm({
         />
 
         <button type="submit" className="send-button" disabled={isBusy || !userPrompt.trim()} aria-label="生成安全路线">
-          {isBusy ? '…' : '➤'}
+          {isBusy ? '…' : <span className="send-button-icon" aria-hidden="true">↑</span>}
         </button>
       </div>
 
