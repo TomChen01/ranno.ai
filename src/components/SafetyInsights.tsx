@@ -37,9 +37,9 @@ export function SafetyInsights({ risk, route, intent, onRequestReplan, isPlannin
         <div className="card">
           <h3>AI 解析结果</h3>
           <ul>
-            <li>地点：{intent.location.context || '未识别'}</li>
-            {intent.constraints.distance_km && <li>目标距离：{intent.constraints.distance_km} km</li>}
-            {intent.constraints.time_of_day && <li>时间段：{intent.constraints.time_of_day}</li>}
+            <li>地点：{intent.location?.context ?? '未识别'}</li>
+            {intent.constraints?.distance_km !== undefined && <li>目标距离：{intent.constraints.distance_km} km</li>}
+            {intent.constraints?.time_of_day && <li>时间段：{intent.constraints.time_of_day}</li>}
             {hasPreferences && <li>安全偏好：{intent?.preferences?.safety?.join('、')}</li>}
           </ul>
         </div>

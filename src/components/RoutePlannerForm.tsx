@@ -68,11 +68,11 @@ export function RoutePlannerForm({
 
       {intent && (
         <div className="intent-chip-list">
-          <div className="intent-chip">地点：{intent.location.context || '未识别'}</div>
-          {intent.constraints.distance_km && (
+          <div className="intent-chip">地点：{intent.location?.context ?? '未识别'}</div>
+          {intent.constraints?.distance_km !== undefined && (
             <div className="intent-chip">距离：{intent.constraints.distance_km} km</div>
           )}
-          {intent.constraints.time_of_day && (
+          {intent.constraints?.time_of_day && (
             <div className="intent-chip">时间：{intent.constraints.time_of_day}</div>
           )}
           {intent.preferences?.safety && intent.preferences.safety.length > 0 && (
