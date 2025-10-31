@@ -31,12 +31,25 @@ export async function fetchCrimePoints(options: CrimeQueryOptions = {}): Promise
 
   const token = import.meta.env.VITE_SFGOV_APP_TOKEN;
 
-  const response = await fetch(`${SF_CRIME_ENDPOINT}?${params.toString()}`, {
-    headers: token ? { 'X-App-Token': token } : undefined,
-  });
+  const endpoint = `${SF_CRIME_ENDPOINT}?${params.toString()}`;
+
+  const performFetch = async (withToken: boolean) => {
+    const headers = withToken && token ? { 'X-App-Token': token } : undefined;
+    return fetch(endpoint, { headers });
+  };
+
+  let response = await performFetch(Boolean(token));
+
+  if (response.status === 403 && token) {
+    console.warn('SFGov responded 403 with provided token, retrying without token to confirm.');
+    response = await performFetch(false);
+  }
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch crime data: ${response.status}`);
+    const detail = response.status === 403
+      ? 'Access denied. Check whether the Socrata App Token is valid and has not been revoked.'
+      : `HTTP ${response.status}`;
+    throw new Error(`Failed to fetch crime data: ${detail}`);
   }
 
   const raw = (await response.json()) as Array<{
