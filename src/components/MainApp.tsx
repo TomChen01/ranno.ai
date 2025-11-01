@@ -1037,14 +1037,11 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
             <h1>Ranno.ai</h1>
           </div>
           <div className="header-actions">
-            <a href="#" className="header-link">
+            <a href="/about.html" className="header-link" target="_blank" rel="noopener noreferrer">
               About
             </a>
-            <a href="#" className="header-link">
+            <a href="/privacy.html" className="header-link" target="_blank" rel="noopener noreferrer">
               Privacy
-            </a>
-            <a href="#" className="header-link">
-              Terms
             </a>
           </div>
         </div>

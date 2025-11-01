@@ -109,7 +109,11 @@ export function RoutePlannerForm({
         />
 
         <button type="submit" className="send-button" disabled={isBusy || !userPrompt.trim()} aria-label="Generate safe route">
-          {isBusy ? '...' : <span className="send-button-icon" aria-hidden="true"></span>}
+          {isBusy ? '...' : (
+            <span className="send-button-icon" aria-hidden="true">
+              ▲
+            </span>
+          )}
         </button>
       </div>
 
