@@ -7,13 +7,19 @@ import type { RouteLike } from '../services/riskService';
 
 export type TravelMode = 'WALKING' | 'BICYCLING' | 'DRIVING';
 
+export type RouteEndpoint = {
+  description: string;
+  placeId?: string;
+  location?: { lat: number; lng: number };
+};
+
 type DirectionsResultLike = {
   routes: RouteLike[];
 };
 
 export type RouteRequest = {
-  origin: string;
-  destination: string;
+  origin: RouteEndpoint;
+  destination: RouteEndpoint;
   travelMode: TravelMode;
   provideAlternatives: boolean;
 };
@@ -23,6 +29,7 @@ type MapViewProps = {
   routeRequest: RouteRequest | null;
   onRouteReady?: (result: DirectionsResultLike) => void;
   onRouteError?: (status: string) => void;
+  onPlacesServiceReady?: (service: google.maps.places.PlacesService) => void;
 };
 
 const DEFAULT_CENTER = { lat: 37.7749, lng: -122.4194 };
@@ -30,14 +37,22 @@ const DEFAULT_CENTER = { lat: 37.7749, lng: -122.4194 };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const google: any;
 
-function MapLayers({ crimePoints, routeRequest, onRouteReady, onRouteError }: MapViewProps) {
+function MapLayers({
+  crimePoints,
+  routeRequest,
+  onRouteReady,
+  onRouteError,
+  onPlacesServiceReady,
+}: MapViewProps) {
   const map = useMap();
   const visualizationLibrary = useMapsLibrary('visualization');
   const routesLibrary = useMapsLibrary('routes');
+  const placesLibrary = useMapsLibrary('places');
 
   const heatmapLayerRef = useRef<google.maps.visualization.HeatmapLayer | null>(null);
   const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
   const directionsServiceRef = useRef<google.maps.DirectionsService | null>(null);
+  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
 
   useEffect(() => {
     if (!map || !visualizationLibrary || heatmapLayerRef.current) {
@@ -82,6 +97,20 @@ function MapLayers({ crimePoints, routeRequest, onRouteReady, onRouteError }: Ma
   }, [routesLibrary]);
 
   useEffect(() => {
+    if (!map || !placesLibrary || placesServiceRef.current) {
+      return;
+    }
+
+    const service = new placesLibrary.PlacesService(map);
+    placesServiceRef.current = service;
+    onPlacesServiceReady?.(service);
+
+    return () => {
+      placesServiceRef.current = null;
+    };
+  }, [map, placesLibrary, onPlacesServiceReady]);
+
+  useEffect(() => {
     if (!map || !routesLibrary || directionsRendererRef.current) {
       return;
     }
@@ -115,10 +144,18 @@ function MapLayers({ crimePoints, routeRequest, onRouteReady, onRouteError }: Ma
       google.maps.TravelMode[routeRequest.travelMode as keyof typeof google.maps.TravelMode] ??
       google.maps.TravelMode.WALKING;
 
+    const originParam = routeRequest.origin.placeId
+      ? { placeId: routeRequest.origin.placeId }
+      : routeRequest.origin.location ?? routeRequest.origin.description;
+
+    const destinationParam = routeRequest.destination.placeId
+      ? { placeId: routeRequest.destination.placeId }
+      : routeRequest.destination.location ?? routeRequest.destination.description;
+
     service.route(
       {
-        origin: routeRequest.origin,
-        destination: routeRequest.destination,
+        origin: originParam,
+        destination: destinationParam,
         travelMode,
         provideRouteAlternatives: routeRequest.provideAlternatives,
       },

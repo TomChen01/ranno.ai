@@ -237,10 +237,103 @@
   color: #ef4444;
 }
 
+.conversation-log {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+  padding-bottom: 4px;
+}
+
+.message-bubble {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  border-radius: 12px;
+  padding: 6px 10px;
+  backdrop-filter: blur(6px);
+}
+
+.message-assistant {
+  align-self: flex-start;
+  background: rgba(15, 23, 42, 0.1);
+  color: #1f2937;
+}
+
+.message-user {
+  align-self: flex-end;
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+}
+
+.question-card {
+  margin-top: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(248, 250, 252, 0.85);
+  color: #1f2937;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.question-text {
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+
+.question-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.question-option {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgb(255 255 255 / 0.95);
+  font-size: 0.78rem;
+  color: #1f2937;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.question-option:hover {
+  transform: translateY(-1px);
+  background: rgb(255 255 255 / 1);
+}
+
+.question-option.ghost {
+  border-style: dashed;
+  color: #64748b;
+}
+
 .route-summary {
   margin-top: 10px;
   font-size: 0.85rem;
-  color: #1d4ed8;
+  color: #1f2937;
+  background: rgba(248, 250, 252, 0.78);
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.insight-line {
+  margin: 0;
+}
+
+.insight-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.privacy-note {
+  margin: 10px 0 0;
+  font-size: 0.72rem;
+  color: rgba(71, 85, 105, 0.85);
   text-align: center;
 }
 
