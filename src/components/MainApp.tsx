@@ -9,6 +9,7 @@ import type { CrimePoint } from '../services/crimeService';
 import { parseUserIntent, type RunGeniusIntent } from '../services/aiService';
 import { summarizeRouteRisk, type RouteLike } from '../services/riskService';
 import type { ConversationMessage, FollowUpQuestion, QuestionOption } from '../types/conversation';
+import promptLogo from '../assets/r-logo.svg';
 
 const DEFAULT_PROMPT = '';
 const DEFAULT_ORIGIN = 'Ferry Building, San Francisco, CA';
@@ -67,6 +68,7 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
   const questionsAskedRef = useRef(0);
 
   const [placesService, setPlacesService] = useState<google.maps.places.PlacesService | null>(null);
+  const [isOverlayMinimized, setOverlayMinimized] = useState<boolean>(false);
 
   const [routeEndpoints, setRouteEndpoints] = useState<{
     origin: RouteEndpoint;
@@ -655,6 +657,23 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
   return (
     <APIProvider apiKey={apiKey} libraries={libraries}>
       <div className="app-shell">
+        <div className="header-bar">
+          <div className="header-brand">
+            <img src={promptLogo} alt="Ranno.ai logo" />
+            <h1>Ranno.ai</h1>
+          </div>
+          <div className="header-actions">
+            <a href="#" className="header-link">
+              关于
+            </a>
+            <a href="#" className="header-link">
+              隐私
+            </a>
+            <a href="#" className="header-link">
+              条款
+            </a>
+          </div>
+        </div>
         <div className="map-container">
           <MapView
             crimePoints={crimePoints}
@@ -672,55 +691,80 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
 
           {routeError && <div className="toast toast-error">{routeError}</div>}
 
-          <div className="prompt-overlay">
-            <RoutePlannerForm
-              userPrompt={userPrompt}
-              isParsing={isParsing}
-              isPlanning={isPlanning}
-              parseError={parseError}
-              conversationLog={conversationLog}
-              activeQuestion={activeQuestion}
-              onPromptChange={setUserPrompt}
-              onParsePrompt={async () => {
-                const trimmed = userPrompt.trim();
-                if (!trimmed) {
-                  return null;
-                }
-                appendMessage({ role: 'user', content: trimmed });
-                const result = await parsePrompt(trimmed);
-                if (result) {
-                  setUserPrompt('');
-                }
-                return result;
-              }}
-              onPlanRoute={startRouteFlow}
-              onAnswerQuestion={(option) => handleQuestionAnswered(option)}
-              onSkipQuestion={() => handleQuestionAnswered(null)}
-            />
-
-            {routeSummary && (
-              <div className="route-summary">
-                <p className="insight-line">起点：{routeSummary.origin}</p>
-                <p className="insight-line">终点：{routeSummary.destination}</p>
-                <p className="insight-line">步行预计：{routeSummary.walkingDuration}</p>
-                <p className="insight-line">跑步预计：{routeSummary.runningDuration}</p>
-                <p className="insight-line">距离：{routeSummary.distance}</p>
-                <p className="insight-line">坡度：{routeSummary.slope}</p>
-                <p className="insight-line">安全：{routeSummary.safety}</p>
-                {routeSummary.highlights.length > 0 && (
-                  <ul className="insight-list">
-                    {routeSummary.highlights.map((item, index) => (
-                      <li key={index}>{item}</li>
-                    ))}
-                  </ul>
-                )}
+          {!isOverlayMinimized ? (
+            <div className="prompt-overlay">
+              <div className="app-brand">
+                <img src={promptLogo} alt="Ranno.ai logo" />
+                <h1>Ranno.ai</h1>
               </div>
-            )}
+              <button
+                type="button"
+                className="overlay-toggle"
+                onClick={() => setOverlayMinimized(true)}
+                aria-label="收起输入框"
+              >
+                ×
+              </button>
+              <RoutePlannerForm
+                userPrompt={userPrompt}
+                isParsing={isParsing}
+                isPlanning={isPlanning}
+                parseError={parseError}
+                conversationLog={conversationLog}
+                activeQuestion={activeQuestion}
+                onPromptChange={setUserPrompt}
+                onParsePrompt={async () => {
+                  const originalPrompt = userPrompt;
+                  const trimmed = originalPrompt.trim();
+                  if (!trimmed) {
+                    return null;
+                  }
+                  appendMessage({ role: 'user', content: trimmed });
+                  setUserPrompt('');
+                  const result = await parsePrompt(trimmed);
+                  if (!result) {
+                    setUserPrompt(originalPrompt);
+                  }
+                  return result;
+                }}
+                onPlanRoute={startRouteFlow}
+                onAnswerQuestion={(option) => handleQuestionAnswered(option)}
+                onSkipQuestion={() => handleQuestionAnswered(null)}
+              />
 
-            {crimeError && <p className="feedback feedback-error">{crimeError}</p>}
+              {routeSummary && (
+                <div className="route-summary">
+                  <p className="insight-line">起点：{routeSummary.origin}</p>
+                  <p className="insight-line">终点：{routeSummary.destination}</p>
+                  <p className="insight-line">步行预计：{routeSummary.walkingDuration}</p>
+                  <p className="insight-line">跑步预计：{routeSummary.runningDuration}</p>
+                  <p className="insight-line">距离：{routeSummary.distance}</p>
+                  <p className="insight-line">坡度：{routeSummary.slope}</p>
+                  <p className="insight-line">安全：{routeSummary.safety}</p>
+                  {routeSummary.highlights.length > 0 && (
+                    <ul className="insight-list">
+                      {routeSummary.highlights.map((item, index) => (
+                        <li key={index}>{item}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
 
-            <p className="privacy-note">隐私声明：你的输入仅用于本次路线规划，不会被保存或用于识别个人身份。</p>
-          </div>
+              {crimeError && <p className="feedback feedback-error">{crimeError}</p>}
+
+              <p className="privacy-note">隐私声明：你的输入仅用于本次路线规划，不会被保存或用于识别个人身份。</p>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="prompt-fab"
+              onClick={() => setOverlayMinimized(false)}
+              aria-label="展开输入框"
+            >
+              <img src={promptLogo} alt="Ranno" className="prompt-fab-logo" />
+            </button>
+          )}
         </div>
       </div>
     </APIProvider>

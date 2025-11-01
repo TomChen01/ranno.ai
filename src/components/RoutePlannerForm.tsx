@@ -1,6 +1,7 @@
 // src/components/RoutePlannerForm.tsx
 
 import type { FormEvent } from 'react';
+import { useState } from 'react';
 import type { RunGeniusIntent } from '../services/aiService';
 import type { ConversationMessage, FollowUpQuestion, QuestionOption } from '../types/conversation';
 
@@ -31,6 +32,7 @@ export function RoutePlannerForm({
   onAnswerQuestion,
   onSkipQuestion,
 }: RoutePlannerFormProps) {
+  const [showFullConversation, setShowFullConversation] = useState(false);
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!userPrompt.trim() || isParsing || isPlanning) {
@@ -41,13 +43,20 @@ export function RoutePlannerForm({
     onPlanRoute(parsedIntent);
   };
 
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      void handleSubmit(event as unknown as FormEvent<HTMLFormElement>);
+    }
+  };
+
   const isBusy = isParsing || isPlanning;
 
   return (
     <form className="single-input-form" onSubmit={handleSubmit}>
       {conversationLog.length > 0 && (
         <div className="conversation-log">
-          {conversationLog.slice(-6).map((message, index) => (
+          {(showFullConversation ? conversationLog : conversationLog.slice(-6)).map((message, index) => (
             <div
               key={index}
               className={`message-bubble ${message.role === 'assistant' ? 'message-assistant' : 'message-user'}`}
@@ -55,6 +64,15 @@ export function RoutePlannerForm({
               {message.content}
             </div>
           ))}
+          {conversationLog.length > 6 && (
+            <button
+              type="button"
+              className="conversation-toggle"
+              onClick={() => setShowFullConversation((prev) => !prev)}
+            >
+              {showFullConversation ? '收起' : '查看更多'}
+            </button>
+          )}
         </div>
       )}
 
@@ -85,6 +103,7 @@ export function RoutePlannerForm({
         <textarea
           value={userPrompt}
           onChange={(event) => onPromptChange(event.target.value)}
+          onKeyDown={handleKeyDown}
           rows={4}
           placeholder="请输入完整的跑步需求，例如：我想从 Ferry Building 到 Golden Gate Park，晚上跑 5 公里，灯光要好且安全。"
         />
