@@ -1,4 +1,4 @@
-// src/App.tsx [最终完整版 - 守卫 + 加载器 + 数据预加载]
+// src/App.tsx [Guard + loader + data preload]
 
 import { useState, useEffect, useCallback } from 'react';
 import './App.css';
@@ -12,20 +12,18 @@ function App() {
   const [crimeData, setCrimeData] = useState<CrimePoint[]>([]);
   const [crimeError, setCrimeError] = useState<string | null>(null);
 
-  // 加载犯罪数据
   const preloadCrimeData = useCallback(async () => {
     setCrimeError(null);
     try {
       const points = await fetchCrimePoints();
       setCrimeData(points);
-      console.log(`✅ Successfully preloaded ${points.length} crime points.`);
+      console.log(`Preloaded ${points.length} crime points successfully.`);
     } catch (error) {
       setCrimeError(error instanceof Error ? error.message : String(error));
-      console.error("❌ Failed to preload crime data:", error);
+      console.error('Failed to preload crime data:', error);
     }
   }, []);
 
-  // 检查模型状态的函数 (无需修改)
   const checkModelStatus = useCallback(async () => {
     const languageModel = getLanguageModel();
     if (!languageModel || typeof languageModel.availability !== 'function') {
@@ -41,13 +39,11 @@ function App() {
     }
   }, []);
 
-  // 在组件挂载时，自动检查状态并预加载数据
   useEffect(() => {
     checkModelStatus();
-    preloadCrimeData(); // --- [新增] --- 同时触发犯罪数据的预加载
-  }, [checkModelStatus, preloadCrimeData]); // --- [修改] --- 添加 preloadCrimeData 到依赖数组
+    preloadCrimeData();
+  }, [checkModelStatus, preloadCrimeData]);
 
-  // 处理用户激活和下载的函数 (无需修改)
   const handleActivateAndDownload = async () => {
     const summarizer = getSummarizer();
     if (!summarizer || typeof summarizer.create !== 'function') {
@@ -66,12 +62,11 @@ function App() {
     }
   };
 
-  // 渲染 UI
   return (
     <div className="app-guard">
       {crimeError && (
         <div className="crime-error" style={{color: 'red', marginBottom: '1em'}}>
-          犯罪数据加载失败: {crimeError}
+          Failed to load crime data: {crimeError}
         </div>
       )}
       {status === 'available' ? (

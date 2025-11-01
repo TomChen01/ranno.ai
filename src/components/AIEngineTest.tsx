@@ -1,23 +1,21 @@
-// src/components/AIEngineTest.tsx [最终版]
+// src/components/AIEngineTest.tsx [Final test harness]
 
 import { useState } from 'react';
-// 导入我们的大脑
-// (路径../services/aiService 是正确的)
+// Import the intent parser helper
+// (Path ../services/aiService is correct)
 import { parseUserIntent, type RunGeniusIntent } from '../services/aiService';
 
 export function AIEngineTest() {
-  const [input, setInput] = useState<string>("我想在旧金山跑个5公里，要安全且有路灯"); // 输入框内容
-  const [result, setResult] = useState<RunGeniusIntent | null>(null); // 存放 AI 返回的 JSON
-  const [isLoading, setIsLoading] = useState<boolean>(false); // 是否正在解析
+  const [input, setInput] = useState<string>('I want to run 5 km in San Francisco with good lighting and safety.');
+  const [result, setResult] = useState<RunGeniusIntent | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  // 按钮点击事件
   const handleParse = async () => {
     setIsLoading(true);
     setResult(null);
-    
-    // 调用我们的大脑
+
     const parsedData = await parseUserIntent(input);
-    
+
     setIsLoading(false);
     if (parsedData) {
       setResult(parsedData);
@@ -26,11 +24,11 @@ export function AIEngineTest() {
 
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      <h1>RunGenius - AI 核心测试 (挑战 A)</h1>
+      <h1>RunGenius - AI Core Test (Challenge A)</h1>
       <hr />
-      
-      <h3>1. 测试意图解析 (Prompt API)</h3>
-      <p>在这里输入你最复杂的跑步需求，测试 AI 能否看懂：</p>
+
+      <h3>1. Intent parsing test (Prompt API)</h3>
+      <p>Enter your most complex running request to see whether the AI understands it:</p>
       <textarea
         value={input}
         onChange={(e) => setInput(e.target.value)}
@@ -39,12 +37,12 @@ export function AIEngineTest() {
       />
       <br />
       <button onClick={handleParse} disabled={isLoading} style={{ padding: '10px 20px', marginTop: '10px', cursor: 'pointer' }}>
-        {isLoading ? '正在解析...' : '解析意图'}
+        {isLoading ? 'Parsing...' : 'Parse intent'}
       </button>
 
-      <h3>2. 解析结果 (V2 JSON)</h3>
+      <h3>2. Parsed result (V2 JSON)</h3>
       <pre style={{ backgroundColor: '#f4f4f4', padding: '15px', borderRadius: '8px' }}>
-        {result ? JSON.stringify(result, null, 2) : '点击按钮以查看结果'}
+        {result ? JSON.stringify(result, null, 2) : 'Click the button to view results'}
       </pre>
     </div>
   );

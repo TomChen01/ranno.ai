@@ -70,7 +70,7 @@ export function RoutePlannerForm({
               className="conversation-toggle"
               onClick={() => setShowFullConversation((prev) => !prev)}
             >
-              {showFullConversation ? '收起' : '查看更多'}
+              {showFullConversation ? 'Show less' : 'See more'}
             </button>
           )}
         </div>
@@ -92,7 +92,7 @@ export function RoutePlannerForm({
             ))}
             {activeQuestion.allowSkip && (
               <button type="button" className="question-option ghost" onClick={onSkipQuestion}>
-                跳过
+                Skip
               </button>
             )}
           </div>
@@ -105,11 +105,11 @@ export function RoutePlannerForm({
           onChange={(event) => onPromptChange(event.target.value)}
           onKeyDown={handleKeyDown}
           rows={4}
-          placeholder="请输入完整的跑步需求，例如：我想从 Ferry Building 到 Golden Gate Park，晚上跑 5 公里，灯光要好且安全。"
+          placeholder="Tell us your running request, e.g., Start at Ferry Building, end at Golden Gate Park, 5 km at night with good lighting."
         />
 
-        <button type="submit" className="send-button" disabled={isBusy || !userPrompt.trim()} aria-label="生成安全路线">
-          {isBusy ? '…' : <span className="send-button-icon" aria-hidden="true">↑</span>}
+        <button type="submit" className="send-button" disabled={isBusy || !userPrompt.trim()} aria-label="Generate safe route">
+          {isBusy ? '...' : <span className="send-button-icon" aria-hidden="true"></span>}
         </button>
       </div>
 

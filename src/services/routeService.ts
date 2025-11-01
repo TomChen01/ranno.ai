@@ -1,11 +1,10 @@
 // src/services/routeService.ts
-// 生成用于在 Google Maps 上绘制的路线，并集成风险评估
-// 生成用于在 Google Maps 上绘制的路线，并集成风险评估
+// Helper utilities for generating Google Maps routes with safety analysis
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { RunGeniusIntent } from './aiService';
-import type { CrimePoint } from './crimeService'; // 导入犯罪数据点类型
-import { summarizeRouteRisk } from './riskService'; // 导入风险分析函数
+import type { CrimePoint } from './crimeService';
+import { summarizeRouteRisk } from './riskService';
 import type { RouteRiskSummary } from './riskService';
 
 export interface LatLng {
@@ -13,43 +12,40 @@ export interface LatLng {
   lng: number;
 }
 
-// --- 接口定义区 ---
+// --- Interface definitions ---
 
 /**
- * 最终生成的、可供前端使用的路线对象。
- * 包含了绘图信息、基本数据和安全风险评估。
+ * Route object returned to the frontend, including geometry, stats, and safety summary.
  */
 export interface GeneratedRoute {
   /** Encoded polyline overview (if available) */
   overview_polyline?: string;
   /** Ordered legs returned by Directions API */
   legs?: any[];
-  /** 总距离（米） */
+  /** Total distance in meters */
   distance_m?: number;
-  /** 总时长（秒） */
+  /** Total duration in seconds */
   duration_s?: number;
   /** Full DirectionsResult when available (JS API) */
   directionsResult?: any;
-  /** 路线的风险评估报告 */
+  /** Safety summary for the route */
   riskSummary?: RouteRiskSummary; 
 }
 
 export interface GenerateRouteOptions {
-  /** 可选：显式提供起点经纬度（优先） */
+  /** Optional: explicit origin lat/lng, preferred over text geocoding */
   originLatLng?: LatLng;
-  /** 可选：行程类型，默认 WALKING */
+  /** Optional: travel mode, defaults to WALKING */
   travelMode?: 'WALKING' | 'DRIVING' | 'BICYCLING' | 'TRANSIT';
-  /** 可选：Google Maps HTTP API key — 当页面没有加载 Google Maps JS API 时可回退使用 */
+  /** Optional: Google Maps HTTP API key for fallback HTTP geocoding */
   apiKey?: string;
-  /** 可选：生成环形路点数量（默认 6） */
+  /** Optional: number of loop waypoints to build (default 6) */
   waypointCount?: number;
 }
 
-// --- 辅助函数区 ---
+// --- Helper functions ---
 
-/**
- * 将地址文本解析为经纬度。
- */
+/** Resolve an address string to latitude/longitude. */
 async function geocodeAddress(address: string, apiKey?: string): Promise<LatLng> {
   if (typeof window !== 'undefined' && (window as any).google?.maps?.Geocoder) {
     const geocoder = new (window as any).google.maps.Geocoder();
@@ -75,7 +71,7 @@ async function geocodeAddress(address: string, apiKey?: string): Promise<LatLng>
   throw new Error('HTTP Geocoding failed: ' + JSON.stringify(json));
 }
 
-/** 计算由起点出发、给定方位角和距离的目的地 */
+/** Compute destination coordinate from origin using bearing + distance. */
 function destinationPoint(origin: LatLng, bearingDeg: number, distanceKm: number): LatLng {
     const R = 6371; // earth radius in km
     const brng = (bearingDeg * Math.PI) / 180;
@@ -87,7 +83,7 @@ function destinationPoint(origin: LatLng, bearingDeg: number, distanceKm: number
     return { lat: (lat2 * 180) / Math.PI, lng: (lon2 * 180) / Math.PI };
 }
 
-/** 为环形路线生成环绕起点的 waypoint 列表。 */
+/** Build waypoint list around the origin for a loop-style route. */
 function buildLoopWaypoints(origin: LatLng, desiredDistanceKm: number, count = 6): LatLng[] {
   const radiusKm = Math.max(0.05, desiredDistanceKm / (2 * Math.PI));
   return Array.from({ length: count }, (_, i) => {
@@ -96,7 +92,7 @@ function buildLoopWaypoints(origin: LatLng, desiredDistanceKm: number, count = 6
   });
 }
 
-/** 使用 Google Maps JS DirectionsService 请求路线。 */
+/** Request a route via the Google Maps JS DirectionsService. */
 function routeWithMapsJS(origin: LatLng, waypoints: LatLng[], travelMode: any): Promise<any> {
   const directionsService = new (window as any).google.maps.DirectionsService();
   const originLatLng = new (window as any).google.maps.LatLng(origin.lat, origin.lng);
@@ -107,7 +103,7 @@ function routeWithMapsJS(origin: LatLng, waypoints: LatLng[], travelMode: any): 
     destination: originLatLng,
     travelMode,
     waypoints: gmWaypoints,
-    optimizeWaypoints: false, // 保持我们计算的环形顺序
+    optimizeWaypoints: false, // keep the custom loop ordering
   };
 
   return new Promise((resolve, reject) => {
@@ -118,10 +114,10 @@ function routeWithMapsJS(origin: LatLng, waypoints: LatLng[], travelMode: any): 
   });
 }
 
-// --- 主函数 ---
+// --- Main entry point ---
 
 /**
- * 主函数：根据 RunGeniusIntent 生成可绘制路线，并附带风险评估。
+ * Generate a drawable route with an attached safety summary based on the intent.
  */
 export async function generateRoute(
   intent: RunGeniusIntent,
@@ -131,7 +127,7 @@ export async function generateRoute(
   const travelMode = options.travelMode || 'WALKING';
   const waypointCount = options.waypointCount || 6;
 
-  // 1. 确定起点位置
+  // 1. Determine origin location
   let originLatLng: LatLng | undefined = options.originLatLng;
   if (!originLatLng) {
     const placeText = intent.location?.context;
@@ -139,14 +135,13 @@ export async function generateRoute(
     originLatLng = await geocodeAddress(placeText, options.apiKey);
   }
 
-  // 2. 确定目标距离
+  // 2. Desired distance
   const desiredKm = intent.constraints?.distance_km ?? 5;
 
-  // 3. 生成环绕 waypoint 列表 (适用于环形路线)
+  // 3. Build loop waypoints
   const waypoints = buildLoopWaypoints(originLatLng, desiredKm, waypointCount);
 
-  // 4. 请求 Google Directions API 获取路线
-  //    (注意：当前版本仅实现了JS API调用，HTTP 回退逻辑已移除以简化)
+  // 4. Request Google Directions API via JS client (HTTP fallback removed for simplicity)
   if (!(typeof window !== 'undefined' && (window as any).google?.maps?.DirectionsService)) {
     throw new Error('Google Maps JS API is not available.');
   }
@@ -154,7 +149,7 @@ export async function generateRoute(
   const route = directionsResult.routes?.[0];
   if (!route) throw new Error('Directions API did not return any routes.');
   
-  // 5. 计算总距离和时长
+  // 5. Aggregate distance and duration
   let totalDistance = 0;
   let totalDuration = 0;
   if (route.legs) {
@@ -164,12 +159,11 @@ export async function generateRoute(
     }
   }
 
-  // 6. 【核心集成】调用风险评估服务
   console.log("Summarizing route risk...");
   const riskSummary = summarizeRouteRisk(route, crimePoints);
   console.log("Risk Summary:", riskSummary);
 
-  // 7. 构建并返回最终的、包含所有信息的路线对象
+  // 6. Build and return final payload
   return {
     overview_polyline: route.overview_polyline?.encodedPath || route.overview_polyline,
     legs: route.legs,
