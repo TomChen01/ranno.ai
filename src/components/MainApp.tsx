@@ -61,7 +61,7 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
   const [routeError, setRouteError] = useState<string | null>(null);
 
   const [conversationLog, setConversationLog] = useState<ConversationMessage[]>([
-    { role: 'assistant', content: '我们先从哪里开始呢？告诉我你的跑步目标、地点或距离。' },
+    { role: 'assistant', content: 'Where should we start? Share your running goal, location, or distance.' },
   ]);
   const [activeQuestion, setActiveQuestion] = useState<FollowUpQuestion | null>(null);
   const questionsQueueRef = useRef<FollowUpQuestion[]>([]);
@@ -95,8 +95,8 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
       })
       .catch((error) => {
         if (!cancelled) {
-          const message = error instanceof Error ? error.message : '未知错误';
-          setCrimeError(`犯罪数据加载失败：${message}`);
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          setCrimeError(`Failed to load crime data: ${message}`);
         }
       })
       .finally(() => {
@@ -123,9 +123,9 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
       setIntent(result);
       return result;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'AI 解析失败';
+      const message = error instanceof Error ? error.message : 'AI parsing failed';
       setParseError(message);
-      appendMessage({ role: 'assistant', content: `解析失败：${message}` });
+      appendMessage({ role: 'assistant', content: `Parsing failed: ${message}` });
       return null;
     } finally {
       setIsParsing(false);
@@ -195,7 +195,7 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
         );
         const offset = geometry.spherical.computeOffset(originLatLng, meters, 60);
         destinationEndpoint = {
-          description: `${routeEndpoints.origin.description} 附近路线`,
+          description: `Route near ${routeEndpoints.origin.description}`,
           location: { lat: offset.lat(), lng: offset.lng() },
         };
       }
@@ -245,7 +245,7 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
       if (option) {
         appendMessage({ role: 'user', content: option.label });
       } else {
-        appendMessage({ role: 'user', content: '用户选择跳过' });
+        appendMessage({ role: 'user', content: 'User chose to skip.' });
       }
 
       question.onSelect(option ?? null);
@@ -267,11 +267,11 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
       if (!currentIntent.preferences?.route_type) {
         questions.push({
           id: 'route_type',
-          prompt: '你更希望路线是哪一种？',
+          prompt: 'What type of route do you prefer?',
           allowSkip: true,
           options: [
-            { id: 'loop', label: '环线', value: 'loop' },
-            { id: 'point_to_point', label: '从起点到终点', value: 'point_to_point' },
+            { id: 'loop', label: 'Loop', value: 'loop' },
+            { id: 'point_to_point', label: 'Point to point', value: 'point_to_point' },
           ],
           onSelect: (option) => {
             if (option) {
@@ -294,12 +294,12 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
       if (!currentIntent.preferences?.environment) {
         questions.push({
           id: 'environment',
-          prompt: '你偏好哪种环境？',
+          prompt: 'What environment do you prefer?',
           allowSkip: true,
           options: [
-            { id: 'prefer_shaded_paths', label: '阴凉路线', value: 'prefer_shaded_paths' },
-            { id: 'prefer_low_traffic', label: '人少的路线', value: 'prefer_low_traffic' },
-            { id: 'avoid_heavy_traffic', label: '避开车多的路', value: 'avoid_heavy_traffic' },
+            { id: 'prefer_shaded_paths', label: 'Shaded paths', value: 'prefer_shaded_paths' },
+            { id: 'prefer_low_traffic', label: 'Quieter streets', value: 'prefer_low_traffic' },
+            { id: 'avoid_heavy_traffic', label: 'Avoid heavy traffic', value: 'avoid_heavy_traffic' },
           ],
           onSelect: (option) => {
             if (option) {
@@ -324,11 +324,11 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
       if (!currentIntent.preferences?.safety) {
         questions.push({
           id: 'safety',
-          prompt: '对安全方面有额外要求吗？',
+          prompt: 'Any additional safety preferences?',
           allowSkip: true,
           options: [
-            { id: 'avoid_high_crime_areas', label: '避开高风险区域', value: 'avoid_high_crime_areas' },
-            { id: 'prefer_well_lit_streets', label: '优先光线充足的路段', value: 'prefer_well_lit_streets' },
+            { id: 'avoid_high_crime_areas', label: 'Avoid higher-risk areas', value: 'avoid_high_crime_areas' },
+            { id: 'prefer_well_lit_streets', label: 'Prefer well-lit streets', value: 'prefer_well_lit_streets' },
           ],
           onSelect: (option) => {
             if (option) {
@@ -356,22 +356,22 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
   const summarizeIntentForConversation = useCallback((parsedIntent: RunGeniusIntent) => {
     const parts: string[] = [];
     if (parsedIntent.location?.origin?.text) {
-      parts.push(`起点：${parsedIntent.location.origin.text}`);
+      parts.push(`Origin: ${parsedIntent.location.origin.text}`);
     }
     if (parsedIntent.location?.destination?.text) {
-      parts.push(`终点：${parsedIntent.location.destination.text}`);
+      parts.push(`Destination: ${parsedIntent.location.destination.text}`);
     }
     if (parsedIntent.constraints?.distance_km) {
-      parts.push(`目标距离：${parsedIntent.constraints.distance_km} km`);
+      parts.push(`Target distance: ${parsedIntent.constraints.distance_km} km`);
     }
     if (parsedIntent.preferences?.safety && parsedIntent.preferences.safety.length > 0) {
-      parts.push(`安全偏好：${parsedIntent.preferences.safety.join('、')}`);
+      parts.push(`Safety preferences: ${parsedIntent.preferences.safety.join(', ')}`);
     }
 
     if (parts.length === 0) {
-      return '好的，我来尝试理解你的跑步需求。';
+      return 'Alright, let me interpret your running request.';
     }
-    return `收到，我理解到：${parts.join('；')}。`;
+    return `Understood. Here is what I captured: ${parts.join('; ')}.`;
   }, []);
 
   const startRouteFlow = useCallback(
@@ -407,11 +407,11 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
       if (originCandidates.length > 1) {
         appendMessage({
           role: 'assistant',
-          content: `我找到了多个与「${nextEndpoints.origin.description}」相关的地点，请选择一个起点：`,
+          content: `I found several places related to "${nextEndpoints.origin.description}". Please choose a starting point:`,
         });
         enqueueQuestion({
           id: 'choose_origin',
-          prompt: `请选择起点「${nextEndpoints.origin.description}」`,
+          prompt: `Please pick the origin "${nextEndpoints.origin.description}"`,
           allowSkip: false,
           options: originCandidates.map((candidate, index) => ({
             id: `origin_${index}`,
@@ -446,11 +446,11 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
       if (destinationCandidates.length > 1) {
         appendMessage({
           role: 'assistant',
-          content: `我找到了多个与「${nextEndpoints.destination.description}」相关的地点，请选择一个终点：`,
+          content: `I found several places related to "${nextEndpoints.destination.description}". Please choose a destination:`,
         });
         enqueueQuestion({
           id: 'choose_destination',
-          prompt: `请选择终点「${nextEndpoints.destination.description}」`,
+          prompt: `Please pick the destination "${nextEndpoints.destination.description}"`,
           allowSkip: false,
           options: destinationCandidates.map((candidate, index) => ({
             id: `destination_${index}`,
@@ -504,9 +504,9 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
     const hours = Math.floor(totalMinutes / 60);
     const minutes = Math.round(totalMinutes % 60);
     if (hours > 0) {
-      return `${hours}小时${minutes}分钟（按每公里${RUNNING_PACE_MIN_PER_KM}分钟估算）`;
+      return `${hours} hr ${minutes} min (estimated at ${RUNNING_PACE_MIN_PER_KM} min/km)`;
     }
-    return `${minutes}分钟（按每公里${RUNNING_PACE_MIN_PER_KM}分钟估算）`;
+    return `${minutes} min (estimated at ${RUNNING_PACE_MIN_PER_KM} min/km)`;
   }, []);
 
   const evaluateSlope = useCallback(async (route: RouteLike) => {
@@ -564,27 +564,27 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
       const highlights: string[] = [];
 
       if (currentIntent?.preferences?.safety?.includes('prefer_well_lit_streets')) {
-        highlights.push('路线规划优先选择光照更好的路段');
+        highlights.push('Prioritizes well-lit segments.');
       }
       if (currentIntent?.preferences?.safety?.includes('avoid_high_crime_areas')) {
-        highlights.push('路线避开近期高风险区域');
+        highlights.push('Avoids recently high-risk areas.');
       }
       if (currentIntent?.preferences?.route_type === 'loop') {
-        highlights.push('返回起点的环线路线');
+        highlights.push('Loop route that returns to the start.');
       }
       if (currentIntent?.preferences?.environment?.includes('prefer_low_traffic')) {
-        highlights.push('尽量选择人流较少的道路');
+        highlights.push('Sticks to lower-traffic streets when possible.');
       }
       if (riskLevel === 'low') {
-        highlights.push('整体区域近期事件较少，风险较低');
+        highlights.push('Area has had fewer recent incidents - lower risk.');
       }
       if (maxSlope !== null) {
         if (maxSlope < 4) {
-          highlights.push('坡度平缓，适合放松跑');
+          highlights.push('Gentle grade, good for an easy run.');
         } else if (maxSlope < 8) {
-          highlights.push('包含一些坡度，体验更具挑战');
+          highlights.push('Includes some hills for a little challenge.');
         } else {
-          highlights.push('坡度较大，注意体力分配');
+          highlights.push('Steeper sections - pace yourself.');
         }
       }
 
@@ -601,7 +601,7 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
       const primary = result.routes[0];
       if (!primary) {
         setRouteSummary(null);
-        appendMessage({ role: 'assistant', content: '暂时没有找到合适的路线，请尝试重新描述需求。' });
+        appendMessage({ role: 'assistant', content: 'No suitable route found yet. Please try describing your request again.' });
         return;
       }
 
@@ -612,8 +612,8 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
         const slope = await evaluateSlope(primary);
 
         const distanceMeters = leg?.distance?.value ?? 0;
-        const walkingDuration = leg?.duration?.text ?? '未知';
-        const runningDuration = distanceMeters > 0 ? computeRunningDuration(distanceMeters) : '未知';
+        const walkingDuration = leg?.duration?.text ?? 'Unknown';
+        const runningDuration = distanceMeters > 0 ? computeRunningDuration(distanceMeters) : 'Unknown';
         const highlights = buildHighlights(intent, risk.level, slope);
 
         setRouteSummary({
@@ -621,15 +621,15 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
           destination: leg?.end_address ?? routeEndpoints.destination.description,
           walkingDuration,
           runningDuration,
-          distance: leg?.distance?.text ?? '未知',
-          slope: slope !== null ? `最大坡度约 ${slope.toFixed(1)}%` : '坡度信息暂不可用',
+          distance: leg?.distance?.text ?? 'Unknown',
+          slope: slope !== null ? `Max grade about ${slope.toFixed(1)}%` : 'Slope information currently unavailable',
           safety: `${risk.level.toUpperCase()} - ${risk.message}`,
           highlights,
         });
 
         appendMessage({
           role: 'assistant',
-          content: `已生成路线：从「${leg?.start_address ?? routeEndpoints.origin.description}」到「${leg?.end_address ?? routeEndpoints.destination.description}」，步行约 ${walkingDuration}，跑步约 ${runningDuration}。`,
+          content: `Route ready: ${leg?.start_address ?? routeEndpoints.origin.description} -> ${leg?.end_address ?? routeEndpoints.destination.description}. Walking about ${walkingDuration}, running about ${runningDuration}.`,
         });
       })();
     },
@@ -638,7 +638,7 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
 
   const handleRouteError = useCallback((status: string) => {
     setIsPlanning(false);
-    const message = `路线规划失败：${status}`;
+    const message = `Route planning failed: ${status}`;
     setRouteError(message);
     appendMessage({ role: 'assistant', content: message });
   }, [appendMessage]);
@@ -648,14 +648,14 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
   if (!apiKey) {
     return (
       <div className="missing-key">
-        <h1>缺少 Google Maps API Key</h1>
-        <p>请在根目录创建 .env.local，并设置 VITE_GOOGLE_MAPS_API_KEY。</p>
+        <h1>Missing Google Maps API Key</h1>
+        <p>Create a .env.local in the project root and set VITE_GOOGLE_MAPS_API_KEY.</p>
       </div>
     );
   }
 
   return (
-    <APIProvider apiKey={apiKey} libraries={libraries}>
+    <APIProvider apiKey={apiKey} libraries={libraries} language="en" region="US">
       <div className="app-shell">
         <div className="header-bar">
           <div className="header-brand">
@@ -664,13 +664,13 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
           </div>
           <div className="header-actions">
             <a href="#" className="header-link">
-              关于
+              About
             </a>
             <a href="#" className="header-link">
-              隐私
+              Privacy
             </a>
             <a href="#" className="header-link">
-              条款
+              Terms
             </a>
           </div>
         </div>
@@ -685,7 +685,7 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
 
           {(isLoadingCrime || isPlanning) && (
             <div className="overlay">
-              <span>{isPlanning ? '正在计算路线…' : '正在加载犯罪数据…'}</span>
+              <span>{isPlanning ? 'Calculating route...' : 'Loading crime data...'}</span>
             </div>
           )}
 
@@ -701,9 +701,9 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
                 type="button"
                 className="overlay-toggle"
                 onClick={() => setOverlayMinimized(true)}
-                aria-label="收起输入框"
+                aria-label="Collapse input panel"
               >
-                ×
+                x
               </button>
               <RoutePlannerForm
                 userPrompt={userPrompt}
@@ -734,13 +734,13 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
 
               {routeSummary && (
                 <div className="route-summary">
-                  <p className="insight-line">起点：{routeSummary.origin}</p>
-                  <p className="insight-line">终点：{routeSummary.destination}</p>
-                  <p className="insight-line">步行预计：{routeSummary.walkingDuration}</p>
-                  <p className="insight-line">跑步预计：{routeSummary.runningDuration}</p>
-                  <p className="insight-line">距离：{routeSummary.distance}</p>
-                  <p className="insight-line">坡度：{routeSummary.slope}</p>
-                  <p className="insight-line">安全：{routeSummary.safety}</p>
+                  <p className="insight-line">Origin: {routeSummary.origin}</p>
+                  <p className="insight-line">Destination: {routeSummary.destination}</p>
+                  <p className="insight-line">Walking estimate: {routeSummary.walkingDuration}</p>
+                  <p className="insight-line">Running estimate: {routeSummary.runningDuration}</p>
+                  <p className="insight-line">Distance: {routeSummary.distance}</p>
+                  <p className="insight-line">Slope: {routeSummary.slope}</p>
+                  <p className="insight-line">Safety: {routeSummary.safety}</p>
                   {routeSummary.highlights.length > 0 && (
                     <ul className="insight-list">
                       {routeSummary.highlights.map((item, index) => (
@@ -753,14 +753,14 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
 
               {crimeError && <p className="feedback feedback-error">{crimeError}</p>}
 
-              <p className="privacy-note">隐私声明：你的输入仅用于本次路线规划，不会被保存或用于识别个人身份。</p>
+              <p className="privacy-note">Privacy note: your input is used only for this route request and is not stored or used for identification.</p>
             </div>
           ) : (
             <button
               type="button"
               className="prompt-fab"
               onClick={() => setOverlayMinimized(false)}
-              aria-label="展开输入框"
+              aria-label="Expand input panel"
             >
               <img src={promptLogo} alt="Ranno" className="prompt-fab-logo" />
             </button>

@@ -35,43 +35,43 @@ export function SafetyInsights({ risk, route, intent, onRequestReplan, isPlannin
 
       {intent && (
         <div className="card">
-          <h3>AI 解析结果</h3>
+          <h3>AI Interpretation</h3>
           <ul>
-            <li>地点：{intent.location?.context ?? '未识别'}</li>
-            {intent.constraints?.distance_km !== undefined && <li>目标距离：{intent.constraints.distance_km} km</li>}
-            {intent.constraints?.time_of_day && <li>时间段：{intent.constraints.time_of_day}</li>}
-            {hasPreferences && <li>安全偏好：{intent?.preferences?.safety?.join('、')}</li>}
+            <li>Context: {intent.location?.context ?? 'Not identified'}</li>
+            {intent.constraints?.distance_km !== undefined && <li>Target distance: {intent.constraints.distance_km} km</li>}
+            {intent.constraints?.time_of_day && <li>Time of day: {intent.constraints.time_of_day}</li>}
+            {hasPreferences && <li>Safety preferences: {intent?.preferences?.safety?.join(', ')}</li>}
           </ul>
         </div>
       )}
 
       {risk ? (
         <div className="card">
-          <h3>安全评分</h3>
+          <h3>Safety Score</h3>
           <div className="risk-row">
             <span className="risk-dot" style={{ backgroundColor: LEVEL_COLOR[risk.level] }} />
             <span className="risk-level">{risk.level.toUpperCase()}</span>
           </div>
           <p>{risk.message}</p>
-          <p>路线覆盖事件：{risk.incidentsAlongRoute} / {risk.incidentsSampled}</p>
+          <p>Incidents along route: {risk.incidentsAlongRoute} / {risk.incidentsSampled}</p>
 
           {onRequestReplan && risk.level !== 'low' && (
             <button type="button" className="secondary" onClick={onRequestReplan} disabled={isPlanning}>
-              {isPlanning ? '重新规划中…' : '尝试更安全路线'}
+              {isPlanning ? 'Replanning...' : 'Try a safer route'}
             </button>
           )}
         </div>
       ) : (
-        <p className="feedback">生成安全评分后将显示详细建议。</p>
+        <p className="feedback">Detailed guidance shows once a safety score is generated.</p>
       )}
 
       {route && (
         <div className="card">
-          <h3>路线信息</h3>
+          <h3>Route Details</h3>
           <ul>
-            {route.summary && <li>路线概述：{route.summary}</li>}
-            {route.distanceText && <li>总距离：{route.distanceText}</li>}
-            {route.durationText && <li>预计时间：{route.durationText}</li>}
+            {route.summary && <li>Overview: {route.summary}</li>}
+            {route.distanceText && <li>Total distance: {route.distanceText}</li>}
+            {route.durationText && <li>Estimated time: {route.durationText}</li>}
           </ul>
         </div>
       )}
