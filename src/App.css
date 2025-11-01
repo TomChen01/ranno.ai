@@ -64,13 +64,66 @@
   left: 50%;
   transform: translateX(-50%);
   width: min(540px, 92vw);
-  padding: 8px 16px 10px;
+  padding: 18px 16px 14px;
   border-radius: 14px;
   background: rgba(248, 250, 252, 0.6);
   border: 1px solid rgba(148, 163, 184, 0.2);
   box-shadow: 0 18px 32px rgba(15, 23, 42, 0.25);
   backdrop-filter: blur(14px);
   z-index: 5;
+}
+
+.overlay-toggle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(255, 255, 255, 0.9);
+  color: #475569;
+  font-size: 1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.overlay-toggle:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 1);
+}
+
+.prompt-fab {
+  position: absolute;
+  right: 20px;
+  bottom: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(248, 250, 252, 0.95);
+  box-shadow: 0 16px 26px rgba(15, 23, 42, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  z-index: 5;
+}
+
+.prompt-fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 30px rgba(15, 23, 42, 0.28);
+}
+
+.prompt-fab-icon {
+  font-size: 1.4rem;
+  color: #1d4ed8;
+  transform: rotate(0deg);
 }
 
 .single-input-form {
