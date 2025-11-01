@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { parseUserIntent, type RunGeniusIntent } from '../services/aiService';
 
 export function AIEngineTest() {
-  const [input, setInput] = useState<string>('I want to run 5 km in San Francisco with good lighting and safety.');
+  const [input, setInput] = useState<string>('I want to run 3 mile in San Francisco with good lighting and safety.');
   const [result, setResult] = useState<RunGeniusIntent | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 

@@ -467,6 +467,8 @@
   flex-direction: column;
   gap: 6px;
   text-align: left;
+  max-height: 260px;
+  overflow-y: auto;
 }
 
 .insight-line {

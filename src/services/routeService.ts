@@ -150,29 +150,32 @@ function findAmenityStopsAlongRoute(route: any, points: PublicAmenityPoint[], th
     return [];
   }
 
-  return points
-    .map((point) => {
-      const target = { lat: point.latitude, lng: point.longitude };
-      let minDistance = Number.POSITIVE_INFINITY;
-      for (const pathPoint of path) {
-        const distance = haversineDistanceMeters(pathPoint, target);
-        if (distance < minDistance) {
-          minDistance = distance;
-        }
+  const stops: AmenityStop[] = [];
+
+  for (const point of points) {
+    const target = { lat: point.latitude, lng: point.longitude };
+    let minDistance = Number.POSITIVE_INFINITY;
+
+    for (const pathPoint of path) {
+      const distance = haversineDistanceMeters(pathPoint, target);
+      if (distance < minDistance) {
+        minDistance = distance;
       }
-      if (minDistance <= thresholdMeters) {
-        return {
-          id: point.id,
-          name: point.name,
-          lat: point.latitude,
-          lng: point.longitude,
-          distanceMeters: minDistance,
-        } satisfies AmenityStop;
-      }
-      return null;
-    })
-    .filter((stop): stop is AmenityStop => stop !== null)
-    .sort((a, b) => a.distanceMeters - b.distanceMeters);
+    }
+
+    if (minDistance <= thresholdMeters) {
+      stops.push({
+        id: point.id,
+        name: point.name,
+        lat: point.latitude,
+        lng: point.longitude,
+        distanceMeters: minDistance,
+      });
+    }
+  }
+
+  stops.sort((a, b) => a.distanceMeters - b.distanceMeters);
+  return stops;
 }
 
 /** Request a route via the Google Maps JS DirectionsService. */
@@ -210,7 +213,7 @@ export async function generateRoute(
   options: GenerateRouteOptions = {},
 ): Promise<GeneratedRoute> {
   const travelMode = options.travelMode || 'WALKING';
-  const waypointCount = options.waypointCount || 6;
+  const waypointCount = options.waypointCount || 3;
 
   // 1. Determine origin location
   let originLatLng: LatLng | undefined = options.originLatLng;

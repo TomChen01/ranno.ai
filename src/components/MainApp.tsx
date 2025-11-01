@@ -96,6 +96,10 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
   const [restroomError, setRestroomError] = useState<string | null>(null);
   const [isLoadingWater, setIsLoadingWater] = useState<boolean>(false);
   const [isLoadingRestrooms, setIsLoadingRestrooms] = useState<boolean>(false);
+  const [amenityPreferences, setAmenityPreferences] = useState<{ restrooms: boolean | null; water: boolean | null }>({
+    restrooms: null,
+    water: null,
+  });
 
   const [userPrompt, setUserPrompt] = useState<string>(DEFAULT_PROMPT);
   const [intent, setIntent] = useState<RunGeniusIntent | null>(null);
@@ -369,8 +373,8 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
       const currentEndpoints = endpointsOverride ?? routeEndpoints;
       const travelMode: GenerateRouteOptions['travelMode'] =
         intentToUse.preferences?.route_type === 'point_to_point' ? 'DRIVING' : 'WALKING';
-      const needsWaterAmenity = intentToUse.preferences?.amenities?.includes('has_water_fountains');
-      const needsRestroomAmenity = intentToUse.preferences?.amenities?.includes('has_restrooms');
+      const needsWaterAmenity = amenityPreferences.water === true;
+      const needsRestroomAmenity = amenityPreferences.restrooms === true;
 
       let adjustedEndpoints = currentEndpoints;
 
@@ -505,7 +509,7 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
         setIsPlanning(false);
       }
     },
-    [appendMessage, buildHighlights, crimePoints, evaluateSlope, intent, restroomPoints, routeEndpoints, waterPoints],
+    [amenityPreferences, appendMessage, buildHighlights, crimePoints, evaluateSlope, intent, restroomPoints, routeEndpoints, waterPoints],
   );
 
   const processNextQuestion = useCallback(() => {
@@ -759,38 +763,87 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
         });
       }
 
-      if (!currentIntent.preferences?.amenities) {
+      if (amenityPreferences.restrooms === null) {
         questions.push({
-          id: 'amenities',
-          prompt: 'Need any specific amenities along the route?',
+          id: 'amenities_restrooms',
+          prompt: 'Do you need restrooms along the route?',
           allowSkip: true,
           options: [
-            { id: 'amenities_restrooms', label: 'Restrooms', value: 'has_restrooms' },
-            { id: 'amenities_water', label: 'Water fountains', value: 'has_water_fountains' },
+            { id: 'restrooms_yes', label: 'Yes', value: 'yes' },
+            { id: 'restrooms_no', label: 'No', value: 'no' },
           ],
           onSelect: (option) => {
-            if (option) {
-              setIntent((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      preferences: {
-                        ...prev.preferences,
-                        amenities: [
-                          option.value as 'has_restrooms' | 'has_water_fountains',
-                        ],
-                      },
-                    }
-                  : prev,
+            const wantsRestrooms = option?.value === 'yes';
+            setAmenityPreferences((prev) => ({ ...prev, restrooms: wantsRestrooms }));
+            setIntent((prev) => {
+              if (!prev) {
+                return prev;
+              }
+              const existingSet = new Set<'has_restrooms' | 'has_water_fountains'>(
+                (prev.preferences?.amenities ?? []) as ('has_restrooms' | 'has_water_fountains')[],
               );
-            }
+              existingSet.delete('has_restrooms');
+              if (wantsRestrooms) {
+                existingSet.add('has_restrooms');
+              }
+              const nextList = Array.from(existingSet);
+              const updatedPrefs = { ...prev.preferences };
+              if (nextList.length > 0) {
+                updatedPrefs.amenities = nextList;
+              } else if (updatedPrefs.amenities) {
+                delete updatedPrefs.amenities;
+              }
+              return {
+                ...prev,
+                preferences: updatedPrefs,
+              };
+            });
+          },
+        });
+      }
+
+      if (amenityPreferences.water === null) {
+        questions.push({
+          id: 'amenities_water',
+          prompt: 'Do you need water fountains along the route?',
+          allowSkip: true,
+          options: [
+            { id: 'water_yes', label: 'Yes', value: 'yes' },
+            { id: 'water_no', label: 'No', value: 'no' },
+          ],
+          onSelect: (option) => {
+            const wantsWater = option?.value === 'yes';
+            setAmenityPreferences((prev) => ({ ...prev, water: wantsWater }));
+            setIntent((prev) => {
+              if (!prev) {
+                return prev;
+              }
+              const existingSet = new Set<'has_restrooms' | 'has_water_fountains'>(
+                (prev.preferences?.amenities ?? []) as ('has_restrooms' | 'has_water_fountains')[],
+              );
+              existingSet.delete('has_water_fountains');
+              if (wantsWater) {
+                existingSet.add('has_water_fountains');
+              }
+              const nextList = Array.from(existingSet);
+              const updatedPrefs = { ...prev.preferences };
+              if (nextList.length > 0) {
+                updatedPrefs.amenities = nextList;
+              } else if (updatedPrefs.amenities) {
+                delete updatedPrefs.amenities;
+              }
+              return {
+                ...prev,
+                preferences: updatedPrefs,
+              };
+            });
           },
         });
       }
 
       return questions;
     },
-    [],
+    [amenityPreferences],
   );
 
   const summarizeIntentForConversation = useCallback((parsedIntent: RunGeniusIntent) => {
@@ -802,7 +855,7 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
       parts.push(`Destination: ${parsedIntent.location.destination.text}`);
     }
     if (parsedIntent.constraints?.distance_km) {
-      parts.push(`Target distance: ${parsedIntent.constraints.distance_km} km`);
+      parts.push(`Target distance: ${parsedIntent.constraints.distance_km} miles`);
     }
     if (parsedIntent.preferences?.safety && parsedIntent.preferences.safety.length > 0) {
       parts.push(`Safety preferences: ${parsedIntent.preferences.safety.join(', ')}`);
@@ -847,6 +900,10 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
 
       appendMessage({ role: 'assistant', content: summarizeIntentForConversation(normalizedIntent) });
       setIntent(normalizedIntent);
+      setAmenityPreferences({
+        restrooms: normalizedIntent.preferences?.amenities?.includes('has_restrooms') ? true : null,
+        water: normalizedIntent.preferences?.amenities?.includes('has_water_fountains') ? true : null,
+      });
 
       const originDescription =
         normalizedIntent.location?.origin?.text ?? normalizedIntent.location?.context ?? DEFAULT_ORIGIN;
@@ -1065,7 +1122,7 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
                   <p className="insight-line">Running estimate: {routeSummary.runningDuration}</p>
                   <p className="insight-line">Distance: {routeSummary.distance}</p>
                   <p className="insight-line">Slope: {routeSummary.slope}</p>
-                  <p className="insight-line">Safety: {routeSummary.safety}</p>
+                  <p className="insight-line">Risk: {routeSummary.safety}</p>
                   {routeSummary.highlights.length > 0 && (
                     <ul className="insight-list">
                       {routeSummary.highlights.map((item, index) => (
