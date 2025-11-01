@@ -2,12 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { APIProvider } from '@vis.gl/react-google-maps';
-import { MapView, type RouteEndpoint, type RouteRequest, type TravelMode } from './MapView';
+import { MapView, type RouteEndpoint } from './MapView';
 import { RoutePlannerForm } from './RoutePlannerForm';
 import { fetchCrimePoints } from '../services/crimeService';
 import type { CrimePoint } from '../services/crimeService';
 import { parseUserIntent, type RunGeniusIntent } from '../services/aiService';
 import { summarizeRouteRisk, type RouteLike } from '../services/riskService';
+import {
+  generateRoute,
+  type GeneratedRoute,
+  type GenerateRouteOptions,
+  type LatLng,
+} from '../services/routeService';
+import { fetchWaterPoints, fetchRestroomPoints, type PublicAmenityPoint } from '../services/waterService';
 import type { ConversationMessage, FollowUpQuestion, QuestionOption } from '../types/conversation';
 import promptLogo from '../assets/r-logo.svg';
 
@@ -16,11 +23,43 @@ const DEFAULT_ORIGIN = 'Ferry Building, San Francisco, CA';
 const DEFAULT_DESTINATION = 'Crissy Field, San Francisco, CA';
 const DEFAULT_MAP_CENTER = { lat: 37.7749, lng: -122.4194 };
 const RUNNING_PACE_MIN_PER_KM = 6;
-const MAX_FOLLOW_UP = 3;
+const WALKING_PACE_MIN_PER_KM = 10;
+const MAX_FOLLOW_UP = Number.POSITIVE_INFINITY;
 
-type DirectionsResultLike = {
-  routes: RouteLike[];
-};
+function formatDistance(meters: number): string {
+  if (!Number.isFinite(meters) || meters <= 0) {
+    return 'Unknown';
+  }
+
+  const kilometers = meters / 1000;
+  const miles = meters / 1609.344;
+  const kmPrecision = kilometers >= 10 ? 0 : 1;
+  const miPrecision = miles >= 10 ? 0 : 1;
+
+  return `${kilometers.toFixed(kmPrecision)} km (${miles.toFixed(miPrecision)} mi)`;
+}
+
+function formatDurationFromSeconds(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return 'Unknown';
+  }
+
+  const totalMinutes = Math.round(seconds / 60);
+  if (totalMinutes < 60) {
+    return `${Math.max(totalMinutes, 1)} mins`;
+  }
+
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return minutes > 0 ? `${hours} hr ${minutes} mins` : `${hours} hr`;
+}
+
+function computePacedSeconds(distanceMeters: number, paceMinPerKm: number): number | null {
+  if (!Number.isFinite(distanceMeters) || distanceMeters <= 0) {
+    return null;
+  }
+  return (distanceMeters / 1000) * paceMinPerKm * 60;
+}
 
 interface MainAppProps {
   crimePoints?: CrimePoint[];
@@ -35,6 +74,8 @@ type RouteSummary = {
   slope: string;
   safety: string;
   highlights: string[];
+  waterStops?: string[];
+  restroomStops?: string[];
 };
 
 type PlaceCandidate = {
@@ -49,16 +90,22 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
   const [crimePoints, setCrimePoints] = useState<CrimePoint[]>(crimePointsProp ?? []);
   const [crimeError, setCrimeError] = useState<string | null>(null);
   const [isLoadingCrime, setIsLoadingCrime] = useState<boolean>(false);
+  const [waterPoints, setWaterPoints] = useState<PublicAmenityPoint[]>([]);
+  const [restroomPoints, setRestroomPoints] = useState<PublicAmenityPoint[]>([]);
+  const [waterError, setWaterError] = useState<string | null>(null);
+  const [restroomError, setRestroomError] = useState<string | null>(null);
+  const [isLoadingWater, setIsLoadingWater] = useState<boolean>(false);
+  const [isLoadingRestrooms, setIsLoadingRestrooms] = useState<boolean>(false);
 
   const [userPrompt, setUserPrompt] = useState<string>(DEFAULT_PROMPT);
   const [intent, setIntent] = useState<RunGeniusIntent | null>(null);
   const [isParsing, setIsParsing] = useState<boolean>(false);
   const [parseError, setParseError] = useState<string | null>(null);
 
-  const [routeRequest, setRouteRequest] = useState<RouteRequest | null>(null);
   const [routeSummary, setRouteSummary] = useState<RouteSummary | null>(null);
   const [isPlanning, setIsPlanning] = useState<boolean>(false);
   const [routeError, setRouteError] = useState<string | null>(null);
+  const [generatedRoute, setGeneratedRoute] = useState<GeneratedRoute | null>(null);
 
   const [conversationLog, setConversationLog] = useState<ConversationMessage[]>([
     { role: 'assistant', content: 'Where should we start? Share your running goal, location, or distance.' },
@@ -109,6 +156,60 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
       cancelled = true;
     };
   }, [crimePointsProp]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoadingWater(true);
+    fetchWaterPoints({ limit: 500 })
+      .then((points) => {
+        if (!cancelled) {
+          setWaterPoints(points);
+          setWaterError(null);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          setWaterError(`Failed to load water fountains: ${message}`);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingWater(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoadingRestrooms(true);
+    fetchRestroomPoints({ limit: 500 })
+      .then((points) => {
+        if (!cancelled) {
+          setRestroomPoints(points);
+          setRestroomError(null);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          setRestroomError(`Failed to load restrooms: ${message}`);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingRestrooms(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const appendMessage = useCallback((message: ConversationMessage) => {
     setConversationLog((prev) => [...prev, message]);
@@ -171,50 +272,246 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
     questionsAskedRef.current = 0;
   }, []);
 
-  const finalizeRoute = useCallback(() => {
-    if (!intent) {
-      return;
+  const evaluateSlope = useCallback(async (route: RouteLike) => {
+    const rawPath = route.overview_path ?? [];
+    const maps = window.google?.maps;
+    if (!rawPath.length || !maps?.ElevationService) {
+      return null;
     }
 
-    const travelMode: TravelMode = intent.preferences?.route_type === 'point_to_point' ? 'DRIVING' : 'WALKING';
+    const path = rawPath.map((point) =>
+      point instanceof maps.LatLng
+        ? point
+        : new maps.LatLng(point.lat(), point.lng()),
+    );
 
-    let destinationEndpoint: RouteEndpoint = routeEndpoints.destination;
+    const elevationService = new maps.ElevationService();
+    const samples = Math.min(200, Math.max(path.length, 50));
 
-    if (
-      (!intent.location?.destination?.text || intent.location?.destination?.text === intent.location?.origin?.text) &&
-      intent.constraints?.distance_km &&
-      routeEndpoints.origin.location &&
-      !routeEndpoints.destination.placeId
-    ) {
-      const geometry = window.google?.maps?.geometry;
-      if (geometry) {
-        const meters = Math.max(intent.constraints.distance_km * 1000 * 0.6, 800);
-        const originLatLng = new window.google.maps.LatLng(
-          routeEndpoints.origin.location.lat,
-          routeEndpoints.origin.location.lng,
-        );
-        const offset = geometry.spherical.computeOffset(originLatLng, meters, 60);
-        destinationEndpoint = {
-          description: `Route near ${routeEndpoints.origin.description}`,
-          location: { lat: offset.lat(), lng: offset.lng() },
-        };
-      }
-    }
+    return await new Promise<number | null>((resolve) => {
+      elevationService.getElevationAlongPath(
+        {
+          path,
+          samples,
+        },
+        (results, status) => {
+          if (status !== window.google.maps.ElevationStatus.OK || !results || results.length < 2) {
+            resolve(null);
+            return;
+          }
 
-    setIsPlanning(true);
-    setRouteError(null);
-    setRouteRequest({
-      origin: routeEndpoints.origin,
-      destination: destinationEndpoint,
-      travelMode,
-      provideAlternatives: true,
+          let maxGrade = 0;
+          for (let i = 1; i < results.length; i += 1) {
+            const prevPoint = results[i - 1];
+            const currentPoint = results[i];
+            if (!prevPoint.location || !currentPoint.location) {
+              continue;
+            }
+            const distance = maps.geometry?.spherical.computeDistanceBetween
+              ? maps.geometry.spherical.computeDistanceBetween(prevPoint.location, currentPoint.location)
+              : NaN;
+            const elevationDiff = currentPoint.elevation - prevPoint.elevation;
+            if (distance && distance > 0) {
+              const grade = Math.abs((elevationDiff / distance) * 100);
+              maxGrade = Math.max(maxGrade, grade);
+            }
+          }
+          resolve(maxGrade);
+        },
+      );
     });
-  }, [intent, routeEndpoints]);
+  }, []);
+
+  const buildHighlights = useCallback(
+    (currentIntent: RunGeniusIntent | null, riskLevel: string, maxSlope: number | null) => {
+      const highlights: string[] = [];
+
+      if (currentIntent?.preferences?.safety?.includes('prefer_well_lit_streets')) {
+        highlights.push('Prioritizes well-lit segments.');
+      }
+      if (currentIntent?.preferences?.safety?.includes('avoid_high_crime_areas')) {
+        highlights.push('Avoids recently high-risk areas.');
+      }
+      if (currentIntent?.preferences?.route_type === 'loop') {
+        highlights.push('Loop route that returns to the start.');
+      }
+      if (currentIntent?.preferences?.environment?.includes('prefer_low_traffic')) {
+        highlights.push('Sticks to lower-traffic streets when possible.');
+      }
+      if (riskLevel === 'low') {
+        highlights.push('Area has had fewer recent incidents - lower risk.');
+      }
+      if (maxSlope !== null) {
+        if (maxSlope < 4) {
+          highlights.push('Gentle grade, good for an easy run.');
+        } else if (maxSlope < 8) {
+          highlights.push('Includes some hills for a little challenge.');
+        } else {
+          highlights.push('Steeper sections - pace yourself.');
+        }
+      }
+
+      return highlights;
+    },
+    [],
+  );
+
+  const finalizeRoute = useCallback(
+    async (
+      activeIntent?: RunGeniusIntent,
+      endpointsOverride?: { origin: RouteEndpoint; destination: RouteEndpoint },
+    ) => {
+      const intentToUse = activeIntent ?? intent;
+      if (!intentToUse) {
+        return;
+      }
+
+      const currentEndpoints = endpointsOverride ?? routeEndpoints;
+      const travelMode: GenerateRouteOptions['travelMode'] =
+        intentToUse.preferences?.route_type === 'point_to_point' ? 'DRIVING' : 'WALKING';
+      const needsWaterAmenity = intentToUse.preferences?.amenities?.includes('has_water_fountains');
+      const needsRestroomAmenity = intentToUse.preferences?.amenities?.includes('has_restrooms');
+
+      let adjustedEndpoints = currentEndpoints;
+
+      if (
+        (!intentToUse.location?.destination?.text ||
+          intentToUse.location?.destination?.text === intentToUse.location?.origin?.text) &&
+        intentToUse.constraints?.distance_km &&
+        currentEndpoints.origin.location &&
+        !currentEndpoints.destination.placeId
+      ) {
+        const geometry = window.google?.maps?.geometry;
+        if (geometry) {
+          const meters = Math.max(intentToUse.constraints.distance_km * 1000 * 0.6, 800);
+          const originLatLng = new window.google.maps.LatLng(
+            currentEndpoints.origin.location.lat,
+            currentEndpoints.origin.location.lng,
+          );
+          const offset = geometry.spherical.computeOffset(originLatLng, meters, 60);
+          adjustedEndpoints = {
+            origin: currentEndpoints.origin,
+            destination: {
+              description: `Route near ${currentEndpoints.origin.description}`,
+              location: { lat: offset.lat(), lng: offset.lng() },
+            },
+          };
+        }
+      }
+
+      setRouteEndpoints(adjustedEndpoints);
+      setIsPlanning(true);
+      setRouteError(null);
+      setGeneratedRoute(null);
+
+      const options: GenerateRouteOptions = {
+        travelMode,
+      };
+
+      if (adjustedEndpoints.origin.location) {
+        options.originLatLng = {
+          lat: adjustedEndpoints.origin.location.lat,
+          lng: adjustedEndpoints.origin.location.lng,
+        } satisfies LatLng;
+      }
+
+      try {
+        const route = await generateRoute(intentToUse, crimePoints, waterPoints, restroomPoints, options);
+        setGeneratedRoute(route);
+
+        const primaryRoute = route.directionsResult?.routes?.[0];
+        if (!primaryRoute) {
+          setRouteSummary(null);
+          setRouteError('Route generation did not return any paths.');
+          return;
+        }
+
+        const legs = primaryRoute.legs ?? [];
+        const firstLeg = legs[0];
+        const totalDistanceMeters =
+          route.distance_m ?? legs.reduce((acc: number, current: google.maps.DirectionsLeg) => acc + (current.distance?.value ?? 0), 0);
+        const totalDurationSeconds =
+          route.duration_s ?? legs.reduce((acc: number, current: google.maps.DirectionsLeg) => acc + (current.duration?.value ?? 0), 0);
+        const riskSummary = route.riskSummary ?? summarizeRouteRisk(primaryRoute, crimePoints);
+
+        const slope = await evaluateSlope(primaryRoute);
+        const distanceText = totalDistanceMeters > 0 ? formatDistance(totalDistanceMeters) : firstLeg?.distance?.text ?? 'Unknown';
+
+        const walkingSecondsFromPace = computePacedSeconds(totalDistanceMeters, WALKING_PACE_MIN_PER_KM);
+        const runningSecondsFromPace = computePacedSeconds(totalDistanceMeters, RUNNING_PACE_MIN_PER_KM);
+
+        const walkingDuration = walkingSecondsFromPace
+          ? formatDurationFromSeconds(walkingSecondsFromPace)
+          : totalDurationSeconds > 0
+          ? formatDurationFromSeconds(totalDurationSeconds)
+          : firstLeg?.duration?.text ?? 'Unknown';
+
+        const runningDuration = runningSecondsFromPace
+          ? `${formatDurationFromSeconds(runningSecondsFromPace)} (estimated at ${RUNNING_PACE_MIN_PER_KM} min/km)`
+          : totalDistanceMeters > 0
+          ? `${formatDurationFromSeconds((totalDurationSeconds || 0) * 0.6)} (estimated)`
+          : 'Unknown';
+
+        const waterStops = route.waterStops ?? [];
+        const restroomStops = route.restroomStops ?? [];
+        const highlights = buildHighlights(intentToUse, riskSummary.level, slope);
+        if (waterStops.length > 0) {
+          const closestWater = waterStops[0];
+          highlights.push(
+            `Water fountain nearby: ${closestWater.name ?? 'Water fountain'} (${formatDistance(closestWater.distanceMeters)} away)`,
+          );
+        } else if (needsWaterAmenity) {
+          highlights.push('No water fountains detected along this route. Consider carrying water.');
+        }
+
+        if (restroomStops.length > 0) {
+          const closestRestroom = restroomStops[0];
+          highlights.push(
+            `Restroom nearby: ${closestRestroom.name ?? 'Restroom'} (${formatDistance(closestRestroom.distanceMeters)} away)`,
+          );
+        } else if (needsRestroomAmenity) {
+          highlights.push('No restrooms detected along this route. Plan a pit stop before your run.');
+        }
+
+        const waterStopSummaries = waterStops.map((stop) =>
+          `${stop.name ?? 'Water fountain'} (${formatDistance(stop.distanceMeters)})`,
+        );
+        const restroomStopSummaries = restroomStops.map((stop) =>
+          `${stop.name ?? 'Restroom'} (${formatDistance(stop.distanceMeters)})`,
+        );
+
+        setRouteSummary({
+          origin: firstLeg?.start_address ?? adjustedEndpoints.origin.description,
+          destination: firstLeg?.end_address ?? adjustedEndpoints.destination.description,
+          walkingDuration,
+          runningDuration,
+          distance: distanceText,
+          slope: slope !== null ? `Max grade about ${slope.toFixed(1)}%` : 'Slope information currently unavailable',
+          safety: `${riskSummary.level.toUpperCase()} - ${riskSummary.message}`,
+          highlights,
+          waterStops: waterStopSummaries,
+          restroomStops: restroomStopSummaries,
+        });
+
+        appendMessage({
+          role: 'assistant',
+          content: `Route ready: ${firstLeg?.start_address ?? adjustedEndpoints.origin.description} -> ${firstLeg?.end_address ?? adjustedEndpoints.destination.description}. Walking about ${walkingDuration}, running about ${runningDuration}.`,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setRouteError(`Route planning failed: ${message}`);
+        appendMessage({ role: 'assistant', content: `Route planning failed: ${message}` });
+      } finally {
+        setIsPlanning(false);
+      }
+    },
+    [appendMessage, buildHighlights, crimePoints, evaluateSlope, intent, restroomPoints, routeEndpoints, waterPoints],
+  );
 
   const processNextQuestion = useCallback(() => {
     if (questionsAskedRef.current >= MAX_FOLLOW_UP) {
       clearQuestions();
-      finalizeRoute();
+      void finalizeRoute();
       return;
     }
 
@@ -222,7 +519,7 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
     setActiveQuestion(nextQuestion);
 
     if (!nextQuestion) {
-      finalizeRoute();
+      void finalizeRoute();
     }
   }, [clearQuestions, finalizeRoute]);
 
@@ -252,7 +549,7 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
 
       if (questionsAskedRef.current >= MAX_FOLLOW_UP) {
         clearQuestions();
-        finalizeRoute();
+        void finalizeRoute();
       } else {
         processNextQuestion();
       }
@@ -339,6 +636,149 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
                       preferences: {
                         ...prev.preferences,
                         safety: [option.value as 'avoid_high_crime_areas' | 'prefer_well_lit_streets'],
+                      },
+                    }
+                  : prev,
+              );
+            }
+          },
+        });
+      }
+
+      if (!currentIntent.preferences?.incline) {
+        questions.push({
+          id: 'incline',
+          prompt: 'How much incline are you looking for?',
+          allowSkip: true,
+          options: [
+            { id: 'incline_low', label: 'Keep it flat', value: 'low' },
+            { id: 'incline_medium', label: 'Moderate hills', value: 'medium' },
+            { id: 'incline_high', label: 'Challenging climbs', value: 'high' },
+          ],
+          onSelect: (option) => {
+            if (option) {
+              setIntent((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      preferences: {
+                        ...prev.preferences,
+                        incline: option.value as 'low' | 'medium' | 'high',
+                      },
+                    }
+                  : prev,
+              );
+            }
+          },
+        });
+      }
+
+      if (!currentIntent.preferences?.surface) {
+        questions.push({
+          id: 'surface',
+          prompt: 'Preferred surface?',
+          allowSkip: true,
+          options: [
+            { id: 'surface_paved', label: 'Paved', value: 'paved' },
+            { id: 'surface_trail', label: 'Trail', value: 'trail' },
+            { id: 'surface_track', label: 'Track', value: 'track' },
+          ],
+          onSelect: (option) => {
+            if (option) {
+              setIntent((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      preferences: {
+                        ...prev.preferences,
+                        surface: [option.value as 'paved' | 'trail' | 'track'],
+                      },
+                    }
+                  : prev,
+              );
+            }
+          },
+        });
+      }
+
+      if (!currentIntent.preferences?.scenery) {
+        questions.push({
+          id: 'scenery',
+          prompt: 'Any scenery you want to prioritize?',
+          allowSkip: true,
+          options: [
+            { id: 'scenery_water', label: 'Water views', value: 'water_view' },
+            { id: 'scenery_bridge', label: 'Bridge views', value: 'bridge_view' },
+            { id: 'scenery_park', label: 'Green parks', value: 'park_view' },
+            { id: 'scenery_city', label: 'City skyline', value: 'cityscape' },
+          ],
+          onSelect: (option) => {
+            if (option) {
+              setIntent((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      preferences: {
+                        ...prev.preferences,
+                        scenery: [
+                          option.value as 'water_view' | 'bridge_view' | 'park_view' | 'cityscape',
+                        ],
+                      },
+                    }
+                  : prev,
+              );
+            }
+          },
+        });
+      }
+
+      if (!currentIntent.preferences?.vibe) {
+        questions.push({
+          id: 'vibe',
+          prompt: 'Do you prefer a specific vibe?',
+          allowSkip: true,
+          options: [
+            { id: 'vibe_quiet', label: 'Quiet and calm', value: 'quiet' },
+            { id: 'vibe_lively', label: 'Energetic and lively', value: 'lively' },
+          ],
+          onSelect: (option) => {
+            if (option) {
+              setIntent((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      preferences: {
+                        ...prev.preferences,
+                        vibe: option.value as 'quiet' | 'lively',
+                      },
+                    }
+                  : prev,
+              );
+            }
+          },
+        });
+      }
+
+      if (!currentIntent.preferences?.amenities) {
+        questions.push({
+          id: 'amenities',
+          prompt: 'Need any specific amenities along the route?',
+          allowSkip: true,
+          options: [
+            { id: 'amenities_restrooms', label: 'Restrooms', value: 'has_restrooms' },
+            { id: 'amenities_water', label: 'Water fountains', value: 'has_water_fountains' },
+          ],
+          onSelect: (option) => {
+            if (option) {
+              setIntent((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      preferences: {
+                        ...prev.preferences,
+                        amenities: [
+                          option.value as 'has_restrooms' | 'has_water_fountains',
+                        ],
                       },
                     }
                   : prev,
@@ -512,158 +952,13 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
       });
 
       if (questionsQueueRef.current.length === 0) {
-        finalizeRoute();
+        void finalizeRoute(normalizedIntent, nextEndpoints);
       } else {
         processNextQuestion();
       }
     },
     [appendMessage, buildPreferenceQuestions, clearQuestions, enqueueQuestion, finalizeRoute, findPlaceCandidates, processNextQuestion, summarizeIntentForConversation],
   );
-
-  const computeRunningDuration = useCallback((distanceMeters: number) => {
-    const distanceKm = distanceMeters / 1000;
-    const totalMinutes = distanceKm * RUNNING_PACE_MIN_PER_KM;
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = Math.round(totalMinutes % 60);
-    if (hours > 0) {
-      return `${hours} hr ${minutes} min (estimated at ${RUNNING_PACE_MIN_PER_KM} min/km)`;
-    }
-    return `${minutes} min (estimated at ${RUNNING_PACE_MIN_PER_KM} min/km)`;
-  }, []);
-
-  const evaluateSlope = useCallback(async (route: RouteLike) => {
-    const rawPath = route.overview_path ?? [];
-    const maps = window.google?.maps;
-    if (!rawPath.length || !maps?.ElevationService) {
-      return null;
-    }
-
-    const path = rawPath.map((point) =>
-      point instanceof maps.LatLng
-        ? point
-        : new maps.LatLng(point.lat(), point.lng()),
-    );
-
-    const elevationService = new maps.ElevationService();
-    const samples = Math.min(200, Math.max(path.length, 50));
-
-    return await new Promise<number | null>((resolve) => {
-      elevationService.getElevationAlongPath(
-        {
-          path,
-          samples,
-        },
-        (results, status) => {
-          if (status !== window.google.maps.ElevationStatus.OK || !results || results.length < 2) {
-            resolve(null);
-            return;
-          }
-
-          let maxGrade = 0;
-          for (let i = 1; i < results.length; i += 1) {
-            const prevPoint = results[i - 1];
-            const currentPoint = results[i];
-            if (!prevPoint.location || !currentPoint.location) {
-              continue;
-            }
-          const distance = maps.geometry?.spherical.computeDistanceBetween
-            ? maps.geometry.spherical.computeDistanceBetween(prevPoint.location, currentPoint.location)
-            : NaN;
-            const elevationDiff = currentPoint.elevation - prevPoint.elevation;
-          if (distance && distance > 0) {
-              const grade = Math.abs((elevationDiff / distance) * 100);
-              maxGrade = Math.max(maxGrade, grade);
-            }
-          }
-          resolve(maxGrade);
-        },
-      );
-    });
-  }, []);
-
-  const buildHighlights = useCallback(
-    (currentIntent: RunGeniusIntent | null, riskLevel: string, maxSlope: number | null) => {
-      const highlights: string[] = [];
-
-      if (currentIntent?.preferences?.safety?.includes('prefer_well_lit_streets')) {
-        highlights.push('Prioritizes well-lit segments.');
-      }
-      if (currentIntent?.preferences?.safety?.includes('avoid_high_crime_areas')) {
-        highlights.push('Avoids recently high-risk areas.');
-      }
-      if (currentIntent?.preferences?.route_type === 'loop') {
-        highlights.push('Loop route that returns to the start.');
-      }
-      if (currentIntent?.preferences?.environment?.includes('prefer_low_traffic')) {
-        highlights.push('Sticks to lower-traffic streets when possible.');
-      }
-      if (riskLevel === 'low') {
-        highlights.push('Area has had fewer recent incidents - lower risk.');
-      }
-      if (maxSlope !== null) {
-        if (maxSlope < 4) {
-          highlights.push('Gentle grade, good for an easy run.');
-        } else if (maxSlope < 8) {
-          highlights.push('Includes some hills for a little challenge.');
-        } else {
-          highlights.push('Steeper sections - pace yourself.');
-        }
-      }
-
-      return highlights;
-    },
-    [],
-  );
-
-  const handleRouteReady = useCallback(
-    (result: DirectionsResultLike) => {
-      setIsPlanning(false);
-      setRouteError(null);
-
-      const primary = result.routes[0];
-      if (!primary) {
-        setRouteSummary(null);
-        appendMessage({ role: 'assistant', content: 'No suitable route found yet. Please try describing your request again.' });
-        return;
-      }
-
-      const leg = primary.legs?.[0];
-
-      void (async () => {
-        const risk = summarizeRouteRisk(primary, crimePoints);
-        const slope = await evaluateSlope(primary);
-
-        const distanceMeters = leg?.distance?.value ?? 0;
-        const walkingDuration = leg?.duration?.text ?? 'Unknown';
-        const runningDuration = distanceMeters > 0 ? computeRunningDuration(distanceMeters) : 'Unknown';
-        const highlights = buildHighlights(intent, risk.level, slope);
-
-        setRouteSummary({
-          origin: leg?.start_address ?? routeEndpoints.origin.description,
-          destination: leg?.end_address ?? routeEndpoints.destination.description,
-          walkingDuration,
-          runningDuration,
-          distance: leg?.distance?.text ?? 'Unknown',
-          slope: slope !== null ? `Max grade about ${slope.toFixed(1)}%` : 'Slope information currently unavailable',
-          safety: `${risk.level.toUpperCase()} - ${risk.message}`,
-          highlights,
-        });
-
-        appendMessage({
-          role: 'assistant',
-          content: `Route ready: ${leg?.start_address ?? routeEndpoints.origin.description} -> ${leg?.end_address ?? routeEndpoints.destination.description}. Walking about ${walkingDuration}, running about ${runningDuration}.`,
-        });
-      })();
-    },
-    [appendMessage, buildHighlights, computeRunningDuration, crimePoints, evaluateSlope, intent, routeEndpoints],
-  );
-
-  const handleRouteError = useCallback((status: string) => {
-    setIsPlanning(false);
-    const message = `Route planning failed: ${status}`;
-    setRouteError(message);
-    appendMessage({ role: 'assistant', content: message });
-  }, [appendMessage]);
 
   const libraries = useMemo<string[]>(() => ['routes', 'visualization', 'geometry', 'places'], []);
 
@@ -699,15 +994,23 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
         <div className="map-container">
           <MapView
             crimePoints={crimePoints}
-            routeRequest={routeRequest}
-            onRouteReady={handleRouteReady}
-            onRouteError={handleRouteError}
+            directionsResult={generatedRoute?.directionsResult ?? null}
+            waterStops={generatedRoute?.waterStops ?? []}
+            restroomStops={generatedRoute?.restroomStops ?? []}
             onPlacesServiceReady={setPlacesService}
           />
 
-          {(isLoadingCrime || isPlanning) && (
+          {(isLoadingCrime || isLoadingWater || isLoadingRestrooms || isPlanning) && (
             <div className="overlay">
-              <span>{isPlanning ? 'Calculating route...' : 'Loading crime data...'}</span>
+              <span>
+                {isPlanning
+                  ? 'Calculating route...'
+                  : isLoadingCrime
+                  ? 'Loading crime data...'
+                  : isLoadingWater
+                  ? 'Loading water fountains...'
+                  : 'Loading restrooms...'}
+              </span>
             </div>
           )}
 
@@ -770,10 +1073,32 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
                       ))}
                     </ul>
                   )}
+                  {routeSummary.waterStops && routeSummary.waterStops.length > 0 && (
+                    <div className="insight-water">
+                      <p className="insight-line">Water fountains nearby:</p>
+                      <ul className="insight-list">
+                        {routeSummary.waterStops.map((item, index) => (
+                          <li key={`water-${index}`}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {routeSummary.restroomStops && routeSummary.restroomStops.length > 0 && (
+                    <div className="insight-water">
+                      <p className="insight-line">Restrooms nearby:</p>
+                      <ul className="insight-list">
+                        {routeSummary.restroomStops.map((item, index) => (
+                          <li key={`restroom-${index}`}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
 
               {crimeError && <p className="feedback feedback-error">{crimeError}</p>}
+              {waterError && <p className="feedback feedback-error">{waterError}</p>}
+              {restroomError && <p className="feedback feedback-error">{restroomError}</p>}
 
               <p className="privacy-note">Privacy note: your input is used only for this route request and is not stored or used for identification.</p>
             </div>

@@ -6,6 +6,7 @@ import type { RunGeniusIntent } from './aiService';
 import type { CrimePoint } from './crimeService';
 import { summarizeRouteRisk } from './riskService';
 import type { RouteRiskSummary } from './riskService';
+import type { PublicAmenityPoint } from './waterService';
 
 export interface LatLng {
   lat: number;
@@ -30,6 +31,18 @@ export interface GeneratedRoute {
   directionsResult?: any;
   /** Safety summary for the route */
   riskSummary?: RouteRiskSummary; 
+  /** Water fountains detected along the route */
+  waterStops?: AmenityStop[];
+  /** Restrooms detected along the route */
+  restroomStops?: AmenityStop[];
+}
+
+export interface AmenityStop {
+  id: string;
+  name?: string;
+  lat: number;
+  lng: number;
+  distanceMeters: number;
 }
 
 export interface GenerateRouteOptions {
@@ -92,6 +105,76 @@ function buildLoopWaypoints(origin: LatLng, desiredDistanceKm: number, count = 6
   });
 }
 
+function haversineDistanceMeters(a: LatLng, b: LatLng): number {
+  const R = 6371000; // meters
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const lat1 = (a.lat * Math.PI) / 180;
+  const lat2 = (b.lat * Math.PI) / 180;
+
+  const sinDLat = Math.sin(dLat / 2);
+  const sinDLng = Math.sin(dLng / 2);
+
+  const aa = sinDLat * sinDLat + sinDLng * sinDLng * Math.cos(lat1) * Math.cos(lat2);
+  const c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
+  return R * c;
+}
+
+function findNearestAmenity(origin: LatLng, points: PublicAmenityPoint[]): { point: PublicAmenityPoint; distance: number } | null {
+  let nearest: PublicAmenityPoint | null = null;
+  let minDistance = Number.POSITIVE_INFINITY;
+
+  for (const point of points) {
+    const distance = haversineDistanceMeters(origin, { lat: point.latitude, lng: point.longitude });
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearest = point;
+    }
+  }
+
+  return nearest ? { point: nearest, distance: minDistance } : null;
+}
+
+function normalizePath(route: any): LatLng[] {
+  const rawPath = route.overview_path ?? [];
+  return rawPath.map((pt: any) => {
+    const lat = typeof pt.lat === 'function' ? pt.lat() : pt.lat;
+    const lng = typeof pt.lng === 'function' ? pt.lng() : pt.lng;
+    return { lat, lng } satisfies LatLng;
+  });
+}
+
+function findAmenityStopsAlongRoute(route: any, points: PublicAmenityPoint[], thresholdMeters = 150): AmenityStop[] {
+  const path = normalizePath(route);
+  if (path.length === 0) {
+    return [];
+  }
+
+  return points
+    .map((point) => {
+      const target = { lat: point.latitude, lng: point.longitude };
+      let minDistance = Number.POSITIVE_INFINITY;
+      for (const pathPoint of path) {
+        const distance = haversineDistanceMeters(pathPoint, target);
+        if (distance < minDistance) {
+          minDistance = distance;
+        }
+      }
+      if (minDistance <= thresholdMeters) {
+        return {
+          id: point.id,
+          name: point.name,
+          lat: point.latitude,
+          lng: point.longitude,
+          distanceMeters: minDistance,
+        } satisfies AmenityStop;
+      }
+      return null;
+    })
+    .filter((stop): stop is AmenityStop => stop !== null)
+    .sort((a, b) => a.distanceMeters - b.distanceMeters);
+}
+
 /** Request a route via the Google Maps JS DirectionsService. */
 function routeWithMapsJS(origin: LatLng, waypoints: LatLng[], travelMode: any): Promise<any> {
   const directionsService = new (window as any).google.maps.DirectionsService();
@@ -122,7 +205,9 @@ function routeWithMapsJS(origin: LatLng, waypoints: LatLng[], travelMode: any): 
 export async function generateRoute(
   intent: RunGeniusIntent,
   crimePoints: CrimePoint[],
-  options: GenerateRouteOptions = {}
+  waterPoints: PublicAmenityPoint[],
+  restroomPoints: PublicAmenityPoint[],
+  options: GenerateRouteOptions = {},
 ): Promise<GeneratedRoute> {
   const travelMode = options.travelMode || 'WALKING';
   const waypointCount = options.waypointCount || 6;
@@ -140,6 +225,29 @@ export async function generateRoute(
 
   // 3. Build loop waypoints
   const waypoints = buildLoopWaypoints(originLatLng, desiredKm, waypointCount);
+
+  const needsWaterAmenity = intent.preferences?.amenities?.includes('has_water_fountains');
+  const needsRestroomAmenity = intent.preferences?.amenities?.includes('has_restrooms');
+  const usableWaterPoints = waterPoints ?? [];
+  const usableRestroomPoints = restroomPoints ?? [];
+
+  if (needsWaterAmenity && usableWaterPoints.length > 0) {
+    const nearest = findNearestAmenity(originLatLng, usableWaterPoints);
+    if (nearest && nearest.distance <= Math.max(desiredKm * 1000, 3000)) {
+      const waterLatLng: LatLng = { lat: nearest.point.latitude, lng: nearest.point.longitude };
+      const insertIndex = Math.min(Math.floor(waypoints.length / 2), waypoints.length);
+      waypoints.splice(insertIndex, 0, waterLatLng);
+    }
+  }
+
+  if (needsRestroomAmenity && usableRestroomPoints.length > 0) {
+    const nearest = findNearestAmenity(originLatLng, usableRestroomPoints);
+    if (nearest && nearest.distance <= Math.max(desiredKm * 1000, 4000)) {
+      const restroomLatLng: LatLng = { lat: nearest.point.latitude, lng: nearest.point.longitude };
+      const insertIndex = Math.min(Math.floor((waypoints.length / 2) + 1), waypoints.length);
+      waypoints.splice(insertIndex, 0, restroomLatLng);
+    }
+  }
 
   // 4. Request Google Directions API via JS client (HTTP fallback removed for simplicity)
   if (!(typeof window !== 'undefined' && (window as any).google?.maps?.DirectionsService)) {
@@ -164,6 +272,9 @@ export async function generateRoute(
   console.log("Risk Summary:", riskSummary);
 
   // 6. Build and return final payload
+  const waterStops = findAmenityStopsAlongRoute(route, usableWaterPoints, needsWaterAmenity ? 200 : 150);
+  const restroomStops = findAmenityStopsAlongRoute(route, usableRestroomPoints, needsRestroomAmenity ? 250 : 200);
+
   return {
     overview_polyline: route.overview_polyline?.encodedPath || route.overview_polyline,
     legs: route.legs,
@@ -171,5 +282,7 @@ export async function generateRoute(
     duration_s: totalDuration,
     directionsResult,
     riskSummary: riskSummary,
+    waterStops,
+    restroomStops,
   };
 }
