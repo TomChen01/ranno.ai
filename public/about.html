@@ -14,10 +14,10 @@
         color: #0f172a;
         background: #f8fafc;
       }
-      h1,h2,h3,h4 {
+      h1, h2, h3, h4 {
         color: #0f172a;
       }
-      pre,code {
+      pre, code {
         background: #e2e8f0;
         padding: 4px 6px;
         border-radius: 4px;
@@ -27,7 +27,7 @@
         width: 100%;
         margin: 16px 0;
       }
-      th,td {
+      th, td {
         border: 1px solid #cbd5f5;
         padding: 8px;
         text-align: left;
@@ -57,57 +57,32 @@
 
     <h2 id="overview">1. Project Overview</h2>
     <p>
-      While popular running apps like Strava and Keep are great for discovering routes based on
-      community data, they often generate paths that lack personalization. These recommendations
-      frequently ignore the common, real-world needs of runners, such as safety considerations
-      (e.g., finding a well-lit route for a night run), preferred incline, scenery, or the
-      availability of water fountains and public restrooms. Ranno.ai is built to address this gap.
+      While popular running apps like Strava and Keep are great for discovering routes based on community data, they often generate paths that lack personalization. These recommendations frequently ignore the common, real-world needs of runners, such as safety considerations (e.g., finding a well-lit route for a night run), preferred incline, scenery, or the availability of water fountains and public restrooms. Ranno.ai is built to address this gap.
     </p>
     <p>
-      Our application empowers users to express their complex route preferences and safety concerns
-      using natural, conversational language. Instead of navigating confusing filters, you can simply
-      tell our AI what you need. Ultimately, Ranno.ai generates a highly intelligent and personalized
-      running route tailored specifically for you, empowering your fitness journey.
+      Our application empowers users to express their complex route preferences and safety concerns using natural, conversational language. Instead of navigating confusing filters, you can simply tell our AI what you need. Ultimately, Ranno.ai generates a highly intelligent and personalized running route tailored specifically for you, empowering your fitness journey.
     </p>
 
     <h2 id="problem">2. Problem Solved</h2>
     <p>
-      Traditional running applications often provide a one-size-fits-all experience, failing to
-      address the nuanced needs of individual runners. Ranno.ai tackles these critical gaps head-on:
+      Traditional running applications often provide a one-size-fits-all experience, failing to address the nuanced needs of individual runners. Ranno.ai tackles these critical gaps head-on:
     </p>
     <ul>
-      <li><strong>Generic Route Recommendations:</strong> Most apps suggest popular routes but cannot
-        accommodate complex, personal preferences. They can't answer requests like, "I want a quiet,
-        scenic run on a trail surface, avoiding major hills." Ranno.ai moves beyond basic distance
-        and time to understand <em>how</em> you want to run.</li>
-      <li><strong>Critical Safety Oversight:</strong> Runner safety, especially for those in
-        unfamiliar cities or running at night, is a major unsolved problem. Existing solutions lack
-        dynamic, real-time safety data, forcing users to manually vet routes or risk running in
-        potentially unsafe areas.</li>
-      <li><strong>Cumbersome User Experience:</strong> Planning a specific route in conventional apps
-        often requires navigating complex menus, applying multiple filters, and manual map
-        adjustments. Ranno.ai streamlines this entire process into a single, intuitive natural
-        language command.</li>
+      <li><strong>Generic Route Recommendations:</strong> Most apps suggest popular routes but cannot accommodate complex, personal preferences. They can't answer requests like, "I want a quiet, scenic run on a trail surface, avoiding major hills." Ranno.ai moves beyond basic distance and time to understand <em>how</em> you want to run.</li>
+      <li><strong>Critical Safety Oversight:</strong> Runner safety, especially for those in unfamiliar cities or running at night, is a major unsolved problem. Existing solutions lack dynamic, real-time safety data, forcing users to manually vet routes or risk running in potentially unsafe areas.</li>
+      <li><strong>Cumbersome User Experience:</strong> Planning a specific route in conventional apps often requires navigating complex menus, applying multiple filters, and manual map adjustments. Ranno.ai streamlines this entire process into a single, intuitive natural language command.</li>
     </ul>
 
     <h2 id="features">3. Key Features</h2>
     <p>
-      Ranno.ai is designed from the ground up to be your intelligent running partner, capable of
-      understanding your most detailed requests. Our core features are powered by the seamless
-      integration of on-device AI and cloud-based data:
+      Ranno.ai is designed from the ground up to be your intelligent running partner, capable of understanding your most detailed requests. Our core features are powered by the seamless integration of on-device AI and cloud-based data:
     </p>
     <ul>
-      <li><strong>🤖 AI-Powered Natural Language Understanding (NLU):</strong> At the heart of
-        Ranno.ai, Gemini Nano interprets complex, conversational user requests into our highly
-        detailed <code>RunGeniusIntent</code> (V2 JSON schema).</li>
-      <li><strong>🛡️ Intelligent Safety-First Routing:</strong> The system proactively generates
-        routes that minimize exposure to high-risk areas.</li>
-      <li><strong>🗺️ Dynamic Safety Heatmap Overlay:</strong> We provide a transparent layer of local
-        safety conditions directly on the map.</li>
-      <li><strong>⚙️ Deep &amp; Granular Personalization:</strong> Tailors routes precisely to the
-        expressed preferences.</li>
-      <li><strong>📍 Smart Point-of-Interest Integration:</strong> Easily include desired landmarks or
-        specify areas/features to avoid.</li>
+      <li><strong>🤖 AI-Powered Natural Language Understanding (NLU):</strong> Gemini Nano interprets conversational requests into the detailed <code>RunGeniusIntent</code> schema.</li>
+      <li><strong>🛡️ Intelligent Safety-First Routing:</strong> Proactively minimizes exposure to higher-risk areas.</li>
+      <li><strong>🗺️ Dynamic Safety Heatmap Overlay:</strong> Visualizes local safety conditions directly on the map.</li>
+      <li><strong>⚙️ Deep &amp; Granular Personalization:</strong> Tailors routes precisely to each preference.</li>
+      <li><strong>📍 Smart Point-of-Interest Integration:</strong> Include landmarks or indicate areas to avoid.</li>
     </ul>
 
     <h2 id="tech">4. Technology Stack</h2>
@@ -169,13 +144,9 @@
     </ul>
     <h3>5.2. Installation</h3>
     <ol>
-      <li>
-        <pre><code>git clone [Your Project Repo URL]
-cd Ranno.ai</code></pre>
-      </li>
-      <li>
-        <pre><code>npm install</code></pre>
-      </li>
+      <li><pre><code>git clone [Your Project Repo URL]
+cd Ranno.ai</code></pre></li>
+      <li><pre><code>npm install</code></pre></li>
     </ol>
     <h3>5.3. Configuration</h3>
     <p>Create <code>.env.local</code> with:</p>
@@ -190,7 +161,7 @@ VITE_SFGOV_APP_TOKEN=YOUR_SFGOV_APP_TOKEN_HERE</code></pre>
 
     <h2 id="future">6. Future Enhancements</h2>
     <ul>
-      <li>Multi-modal Input (voice, image cues).</li>
+      <li>Multi-modal input (voice, image cues).</li>
       <li>Adaptive learning &amp; user profiles.</li>
       <li>Social/community features.</li>
       <li>Wearable integration.</li>
@@ -199,3 +170,4 @@ VITE_SFGOV_APP_TOKEN=YOUR_SFGOV_APP_TOKEN_HERE</code></pre>
     </ul>
   </body>
 </html>
+
