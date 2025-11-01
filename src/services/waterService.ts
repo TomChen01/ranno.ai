@@ -55,22 +55,24 @@ async function fetchAmenity(resourceType: 'drinking_water' | 'restroom', options
     address?: string;
   }>;
 
-  return raw
-    .map((item, index) => {
-      const lat = Number(item.latitude ?? item.location?.latitude);
-      const lng = Number(item.longitude ?? item.location?.longitude);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-        return null;
-      }
-      return {
-        id: item.objectid ?? `${resourceType}-${index}`,
-        latitude: lat,
-        longitude: lng,
-        name: item.name ?? item.location_name ?? undefined,
-        address: item.address ?? item.location?.human_address ?? undefined,
-      } satisfies PublicAmenityPoint;
-    })
-    .filter((point): point is PublicAmenityPoint => point !== null);
+  const amenities: PublicAmenityPoint[] = [];
+
+  raw.forEach((item, index) => {
+    const lat = Number(item.latitude ?? item.location?.latitude);
+    const lng = Number(item.longitude ?? item.location?.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return;
+    }
+    amenities.push({
+      id: item.objectid ?? `${resourceType}-${index}`,
+      latitude: lat,
+      longitude: lng,
+      name: item.name ?? item.location_name ?? undefined,
+      address: item.address ?? item.location?.human_address ?? undefined,
+    });
+  });
+
+  return amenities;
 }
 
 export async function fetchWaterPoints(options: FetchOptions = {}): Promise<PublicAmenityPoint[]> {
