@@ -105,11 +105,15 @@ export function RoutePlannerForm({
           onChange={(event) => onPromptChange(event.target.value)}
           onKeyDown={handleKeyDown}
           rows={4}
-          placeholder="Tell us your running request, e.g., Start at Ferry Building, end at Golden Gate Park, 5 km at night with good lighting."
+          placeholder="Tell us your running request, e.g., Start at Ferry Building, end at Golden Gate Park, 3 miles at night with good lighting."
         />
 
         <button type="submit" className="send-button" disabled={isBusy || !userPrompt.trim()} aria-label="Generate safe route">
-          {isBusy ? '...' : <span className="send-button-icon" aria-hidden="true"></span>}
+          {isBusy ? '...' : (
+            <span className="send-button-icon" aria-hidden="true">
+              ▲
+            </span>
+          )}
         </button>
       </div>
 

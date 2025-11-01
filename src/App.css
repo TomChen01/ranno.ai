@@ -94,6 +94,8 @@
   padding: 6px 10px;
   border-radius: 999px;
   border: 1px solid transparent;
+  background: none;
+  cursor: pointer;
   transition: background 0.15s ease, border 0.15s ease;
 }
 
@@ -467,6 +469,8 @@
   flex-direction: column;
   gap: 6px;
   text-align: left;
+  max-height: 260px;
+  overflow-y: auto;
 }
 
 .insight-line {

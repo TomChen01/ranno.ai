@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ranno.ai – About</title>
+    <style>
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 24px;
+        line-height: 1.6;
+        color: #0f172a;
+        background: #f8fafc;
+      }
+      h1,h2,h3,h4 {
+        color: #0f172a;
+      }
+      pre,code {
+        background: #e2e8f0;
+        padding: 4px 6px;
+        border-radius: 4px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 16px 0;
+      }
+      th,td {
+        border: 1px solid #cbd5f5;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background: #e2e8f0;
+      }
+      a {
+        color: #2563eb;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Ranno.ai: Your Personal AI-Powered Running Route Planner</h1>
+    <p align="center">
+      <img src="src/assets/logo.png" alt="Ranno.ai Logo" width="200" />
+    </p>
+    <h2>Table of Contents</h2>
+    <ol>
+      <li><a href="#overview">Project Overview</a></li>
+      <li><a href="#problem">Problem Solved</a></li>
+      <li><a href="#features">Key Features</a></li>
+      <li><a href="#tech">Technology Stack</a></li>
+      <li><a href="#how-to-run">How to Run the Project</a></li>
+      <li><a href="#future">Future Enhancements</a></li>
+    </ol>
+
+    <h2 id="overview">1. Project Overview</h2>
+    <p>
+      While popular running apps like Strava and Keep are great for discovering routes based on
+      community data, they often generate paths that lack personalization. These recommendations
+      frequently ignore the common, real-world needs of runners, such as safety considerations
+      (e.g., finding a well-lit route for a night run), preferred incline, scenery, or the
+      availability of water fountains and public restrooms. Ranno.ai is built to address this gap.
+    </p>
+    <p>
+      Our application empowers users to express their complex route preferences and safety concerns
+      using natural, conversational language. Instead of navigating confusing filters, you can simply
+      tell our AI what you need. Ultimately, Ranno.ai generates a highly intelligent and personalized
+      running route tailored specifically for you, empowering your fitness journey.
+    </p>
+
+    <h2 id="problem">2. Problem Solved</h2>
+    <p>
+      Traditional running applications often provide a one-size-fits-all experience, failing to
+      address the nuanced needs of individual runners. Ranno.ai tackles these critical gaps head-on:
+    </p>
+    <ul>
+      <li><strong>Generic Route Recommendations:</strong> Most apps suggest popular routes but cannot
+        accommodate complex, personal preferences. They can't answer requests like, "I want a quiet,
+        scenic run on a trail surface, avoiding major hills." Ranno.ai moves beyond basic distance
+        and time to understand <em>how</em> you want to run.</li>
+      <li><strong>Critical Safety Oversight:</strong> Runner safety, especially for those in
+        unfamiliar cities or running at night, is a major unsolved problem. Existing solutions lack
+        dynamic, real-time safety data, forcing users to manually vet routes or risk running in
+        potentially unsafe areas.</li>
+      <li><strong>Cumbersome User Experience:</strong> Planning a specific route in conventional apps
+        often requires navigating complex menus, applying multiple filters, and manual map
+        adjustments. Ranno.ai streamlines this entire process into a single, intuitive natural
+        language command.</li>
+    </ul>
+
+    <h2 id="features">3. Key Features</h2>
+    <p>
+      Ranno.ai is designed from the ground up to be your intelligent running partner, capable of
+      understanding your most detailed requests. Our core features are powered by the seamless
+      integration of on-device AI and cloud-based data:
+    </p>
+    <ul>
+      <li><strong>🤖 AI-Powered Natural Language Understanding (NLU):</strong> At the heart of
+        Ranno.ai, Gemini Nano interprets complex, conversational user requests into our highly
+        detailed <code>RunGeniusIntent</code> (V2 JSON schema).</li>
+      <li><strong>🛡️ Intelligent Safety-First Routing:</strong> The system proactively generates
+        routes that minimize exposure to high-risk areas.</li>
+      <li><strong>🗺️ Dynamic Safety Heatmap Overlay:</strong> We provide a transparent layer of local
+        safety conditions directly on the map.</li>
+      <li><strong>⚙️ Deep &amp; Granular Personalization:</strong> Tailors routes precisely to the
+        expressed preferences.</li>
+      <li><strong>📍 Smart Point-of-Interest Integration:</strong> Easily include desired landmarks or
+        specify areas/features to avoid.</li>
+    </ul>
+
+    <h2 id="tech">4. Technology Stack</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Technology</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Frontend</td>
+          <td>React (with Vite)</td>
+          <td>Modern, fast, component-based UI.</td>
+        </tr>
+        <tr>
+          <td>Language</td>
+          <td>TypeScript</td>
+          <td>Type-safe development for complex logic.</td>
+        </tr>
+        <tr>
+          <td>Core AI</td>
+          <td>Chrome Prompt API (Gemini Nano)</td>
+          <td>On-device NLU for privacy-preserving intent parsing.</td>
+        </tr>
+        <tr>
+          <td>Mapping &amp; Routing</td>
+          <td>Google Maps JavaScript API</td>
+          <td>Directions, Places, and Geometry libraries.</td>
+        </tr>
+        <tr>
+          <td>Safety Data</td>
+          <td>San Francisco Crime Data API</td>
+          <td>Real-time safety insights.</td>
+        </tr>
+        <tr>
+          <td>Other Data</td>
+          <td>San Francisco Bathrooms/Water Fountains API</td>
+          <td>Convenience amenities along routes.</td>
+        </tr>
+        <tr>
+          <td>Deployment</td>
+          <td>Vercel</td>
+          <td>Git-based CI/CD and hosting.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 id="how-to-run">5. How to Run the Project</h2>
+    <h3>5.1. Prerequisites</h3>
+    <ul>
+      <li>Google Chrome Canary (or equivalent supporting the Prompt API).</li>
+      <li>Chrome flag <code>#enable--on-device-model</code> enabled.</li>
+      <li>Downloaded Gemini Nano model.</li>
+      <li>Node.js &amp; npm (or yarn).</li>
+      <li>Google Maps API key.</li>
+    </ul>
+    <h3>5.2. Installation</h3>
+    <ol>
+      <li>
+        <pre><code>git clone [Your Project Repo URL]
+cd Ranno.ai</code></pre>
+      </li>
+      <li>
+        <pre><code>npm install</code></pre>
+      </li>
+    </ol>
+    <h3>5.3. Configuration</h3>
+    <p>Create <code>.env.local</code> with:</p>
+    <pre><code>VITE_GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY_HERE
+VITE_SFGOV_APP_TOKEN=YOUR_SFGOV_APP_TOKEN_HERE</code></pre>
+
+    <h3>5.4. Start Development Server</h3>
+    <pre><code>npm run dev</code></pre>
+
+    <h3>5.5. Access</h3>
+    <pre><code>http://localhost:5173/</code></pre>
+
+    <h2 id="future">6. Future Enhancements</h2>
+    <ul>
+      <li>Multi-modal Input (voice, image cues).</li>
+      <li>Adaptive learning &amp; user profiles.</li>
+      <li>Social/community features.</li>
+      <li>Wearable integration.</li>
+      <li>Cross-platform deployment &amp; PWA.</li>
+      <li>Dynamic weather integration.</li>
+    </ul>
+  </body>
+</html>
