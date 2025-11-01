@@ -380,28 +380,48 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
         return;
       }
 
+      const normalizedIntent: RunGeniusIntent = {
+        ...parsedIntent,
+        location: parsedIntent.location ? { ...parsedIntent.location } : undefined,
+        preferences: parsedIntent.preferences ? { ...parsedIntent.preferences } : undefined,
+      };
+
+      const hasDestinationInput = Boolean(normalizedIntent.location?.destination?.text);
+      const hasOriginInput = Boolean(normalizedIntent.location?.origin?.text || normalizedIntent.location?.context);
+      const isSingleLocationIntent = hasOriginInput && !hasDestinationInput;
+
+      if (isSingleLocationIntent) {
+        if (!normalizedIntent.preferences) {
+          normalizedIntent.preferences = {};
+        }
+        if (!normalizedIntent.preferences.route_type) {
+          normalizedIntent.preferences.route_type = 'loop';
+        }
+        if (normalizedIntent.location) {
+          normalizedIntent.location.destination = undefined;
+        }
+      }
+
       setRouteSummary(null);
       clearQuestions();
 
-      appendMessage({ role: 'assistant', content: summarizeIntentForConversation(parsedIntent) });
-      setIntent(parsedIntent);
+      appendMessage({ role: 'assistant', content: summarizeIntentForConversation(normalizedIntent) });
+      setIntent(normalizedIntent);
+
+      const originDescription =
+        normalizedIntent.location?.origin?.text ?? normalizedIntent.location?.context ?? DEFAULT_ORIGIN;
+
+      let destinationDescription =
+        normalizedIntent.location?.destination?.text ?? normalizedIntent.location?.context ?? DEFAULT_DESTINATION;
+
+      if (isSingleLocationIntent) {
+        destinationDescription = originDescription;
+      }
 
       const nextEndpoints: { origin: RouteEndpoint; destination: RouteEndpoint } = {
-        origin: { description: DEFAULT_ORIGIN },
-        destination: { description: DEFAULT_DESTINATION },
+        origin: { description: originDescription },
+        destination: { description: destinationDescription },
       };
-
-      if (parsedIntent.location?.origin?.text) {
-        nextEndpoints.origin.description = parsedIntent.location.origin.text;
-      } else if (parsedIntent.location?.context) {
-        nextEndpoints.origin.description = parsedIntent.location.context;
-      }
-
-      if (parsedIntent.location?.destination?.text) {
-        nextEndpoints.destination.description = parsedIntent.location.destination.text;
-      } else if (parsedIntent.location?.context) {
-        nextEndpoints.destination.description = parsedIntent.location.context;
-      }
 
       const originCandidates = await findPlaceCandidates(nextEndpoints.origin.description);
       if (originCandidates.length > 1) {
@@ -442,48 +462,50 @@ export function MainApp({ crimePoints: crimePointsProp }: MainAppProps) {
         };
       }
 
-      const destinationCandidates = await findPlaceCandidates(nextEndpoints.destination.description);
-      if (destinationCandidates.length > 1) {
-        appendMessage({
-          role: 'assistant',
-          content: `I found several places related to "${nextEndpoints.destination.description}". Please choose a destination:`,
-        });
-        enqueueQuestion({
-          id: 'choose_destination',
-          prompt: `Please pick the destination "${nextEndpoints.destination.description}"`,
-          allowSkip: false,
-          options: destinationCandidates.map((candidate, index) => ({
-            id: `destination_${index}`,
-            label: candidate.description,
-            value: candidate.description,
-            data: candidate,
-          })),
-          onSelect: (option) => {
-            if (option?.data) {
-              const candidate = option.data as PlaceCandidate;
-              setRouteEndpoints((prev) => ({
-                origin: prev.origin,
-                destination: {
-                  description: candidate.description,
-                  placeId: candidate.placeId,
-                  location: candidate.location,
-                },
-              }));
-            }
-          },
-        });
-      } else if (destinationCandidates.length === 1) {
-        const candidate = destinationCandidates[0];
-        nextEndpoints.destination = {
-          description: candidate.description,
-          placeId: candidate.placeId,
-          location: candidate.location,
-        };
+      if (!isSingleLocationIntent) {
+        const destinationCandidates = await findPlaceCandidates(nextEndpoints.destination.description);
+        if (destinationCandidates.length > 1) {
+          appendMessage({
+            role: 'assistant',
+            content: `I found several places related to "${nextEndpoints.destination.description}". Please choose a destination:`,
+          });
+          enqueueQuestion({
+            id: 'choose_destination',
+            prompt: `Please pick the destination "${nextEndpoints.destination.description}"`,
+            allowSkip: false,
+            options: destinationCandidates.map((candidate, index) => ({
+              id: `destination_${index}`,
+              label: candidate.description,
+              value: candidate.description,
+              data: candidate,
+            })),
+            onSelect: (option) => {
+              if (option?.data) {
+                const candidate = option.data as PlaceCandidate;
+                setRouteEndpoints((prev) => ({
+                  origin: prev.origin,
+                  destination: {
+                    description: candidate.description,
+                    placeId: candidate.placeId,
+                    location: candidate.location,
+                  },
+                }));
+              }
+            },
+          });
+        } else if (destinationCandidates.length === 1) {
+          const candidate = destinationCandidates[0];
+          nextEndpoints.destination = {
+            description: candidate.description,
+            placeId: candidate.placeId,
+            location: candidate.location,
+          };
+        }
       }
 
       setRouteEndpoints(nextEndpoints);
 
-      const prefQuestions = buildPreferenceQuestions(parsedIntent);
+      const prefQuestions = buildPreferenceQuestions(normalizedIntent);
       prefQuestions.forEach((question) => {
         appendMessage({ role: 'assistant', content: question.prompt });
         enqueueQuestion(question);
