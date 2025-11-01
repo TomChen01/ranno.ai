@@ -8,6 +8,7 @@ import { fetchCrimePoints, type CrimePoint } from '../services/crimeService';
 import { parseUserIntent, type RunGeniusIntent } from '../services/aiService';
 import { summarizeRouteRisk, type RouteLike } from '../services/riskService';
 import type { ConversationMessage, FollowUpQuestion, QuestionOption } from '../types/conversation';
+import promptLogo from '../assets/r-logo.svg';
 
 const DEFAULT_PROMPT = '';
 const DEFAULT_ORIGIN = 'Ferry Building, San Francisco, CA';
@@ -645,6 +646,23 @@ export function MainApp() {
   return (
     <APIProvider apiKey={apiKey} libraries={libraries}>
       <div className="app-shell">
+        <div className="header-bar">
+          <div className="header-brand">
+            <img src={promptLogo} alt="Ranno.ai logo" />
+            <h1>Ranno.ai</h1>
+          </div>
+          <div className="header-actions">
+            <a href="#" className="header-link">
+              关于
+            </a>
+            <a href="#" className="header-link">
+              隐私
+            </a>
+            <a href="#" className="header-link">
+              条款
+            </a>
+          </div>
+        </div>
         <div className="map-container">
           <MapView
             crimePoints={crimePoints}
@@ -664,6 +682,10 @@ export function MainApp() {
 
           {!isOverlayMinimized ? (
             <div className="prompt-overlay">
+              <div className="app-brand">
+                <img src={promptLogo} alt="Ranno.ai logo" />
+                <h1>Ranno.ai</h1>
+              </div>
               <button
                 type="button"
                 className="overlay-toggle"
@@ -681,14 +703,16 @@ export function MainApp() {
                 activeQuestion={activeQuestion}
                 onPromptChange={setUserPrompt}
                 onParsePrompt={async () => {
-                  const trimmed = userPrompt.trim();
+                  const originalPrompt = userPrompt;
+                  const trimmed = originalPrompt.trim();
                   if (!trimmed) {
                     return null;
                   }
                   appendMessage({ role: 'user', content: trimmed });
+                  setUserPrompt('');
                   const result = await parsePrompt(trimmed);
-                  if (result) {
-                    setUserPrompt('');
+                  if (!result) {
+                    setUserPrompt(originalPrompt);
                   }
                   return result;
                 }}
@@ -727,7 +751,7 @@ export function MainApp() {
               onClick={() => setOverlayMinimized(false)}
               aria-label="展开输入框"
             >
-              <span className="prompt-fab-icon" aria-hidden="true">✱</span>
+              <img src={promptLogo} alt="Ranno" className="prompt-fab-logo" />
             </button>
           )}
         </div>
